@@ -233,3 +233,15 @@ def test_discovery_configs() -> None:
             "replay": True,
         }
     ]
+
+
+async def test_health_check(setup, tmp_path: Path) -> None:
+    from enocean_proxy.health import healthy
+
+    _gateway, proxy = setup
+    options = tmp_path / "options.json"
+    options.write_text(json.dumps({"gateways": [{"port": proxy.port}]}))
+    assert await asyncio.to_thread(healthy, options)
+    options.write_text(json.dumps({"gateways": [{"port": 1}]}))
+    assert not await asyncio.to_thread(healthy, options)
+    assert not await asyncio.to_thread(healthy, tmp_path / "missing.json")

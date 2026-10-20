@@ -13,7 +13,6 @@ usb: true
 hassio_api: true
 discovery:
   - enocean_eltako
-watchdog: tcp://[HOST]:[PORT:9100]
 # Home Assistant reaches the app inside the Supervisor network; set a host port only for
 # programs elsewhere in the LAN (and limit them with allowed_clients)
 ports:

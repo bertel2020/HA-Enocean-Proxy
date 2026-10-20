@@ -10,7 +10,8 @@
   `replay_max_age_s` (default 15 minutes).
 - The gateway's answer to a command goes to the client that sent it.
 - A client that stops reading is disconnected instead of filling the memory.
-- Serial ports are opened exclusively; watchdog; ports outside 9100 to 9103 are refused.
+- Serial ports are opened exclusively; a health check restarts a hanging app; ports outside
+  9100 to 9103 are refused.
 
 ## 0.1.0
 
