@@ -75,3 +75,41 @@ class Splitter:
             frame = bytes(self._buffer[:total])
             del self._buffer[:total]
             return frame
+
+
+# What a frame is, as far as the proxy needs it -------------------------------------------------
+
+ESP2_RRT, ESP2_TRT, ESP2_RMT, ESP2_TCT = 0b000, 0b011, 0b100, 0b101
+ESP2_RADIO_ORGS = {0x05, 0x06, 0x07, 0xD2}  # RPS, 1BS, 4BS, VLD (Eltako)
+ESP2_BUS_CONTROL = 0xF0  # ORG from here on: FAM14 bus polling and memory access
+ESP3_RADIO_TYPES = {0x01, 0x03, 0x09}  # RADIO_ERP1, RADIO_SUB_TEL, RADIO_MESSAGE
+ESP3_RESPONSE = 0x02
+
+
+def _esp2(frame: bytes) -> tuple[int, int]:
+    return frame[2] >> 5, frame[3]  # header sequence, ORG
+
+
+def is_radio(protocol: str, frame: bytes) -> bool:
+    """A telegram worth replaying: a radio telegram or a bus actor's state answer, not
+    FAM14 polling, empty answers or gateway messages."""
+    if protocol == "esp3":
+        return frame[4] in ESP3_RADIO_TYPES
+    hseq, org = _esp2(frame)
+    return hseq in (ESP2_RRT, ESP2_TRT, ESP2_RMT) and org in ESP2_RADIO_ORGS
+
+
+def is_response(protocol: str, frame: bytes) -> bool:
+    """The gateway's answer to a command (OK, error, base ID ...)."""
+    if protocol == "esp3":
+        return frame[4] == ESP3_RESPONSE
+    hseq, org = _esp2(frame)
+    return hseq == ESP2_RMT and org not in ESP2_RADIO_ORGS and org < ESP2_BUS_CONTROL
+
+
+def expects_response(protocol: str, frame: bytes) -> bool:
+    """ESP3 answers every packet; ESP2 answers gateway commands (not radio, not bus)."""
+    if protocol == "esp3":
+        return True
+    hseq, org = _esp2(frame)
+    return hseq == ESP2_TCT and org < ESP2_BUS_CONTROL

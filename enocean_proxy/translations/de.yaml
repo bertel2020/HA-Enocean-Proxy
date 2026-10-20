@@ -15,6 +15,12 @@ configuration:
       Telegramme, die gespeichert werden, solange Home Assistant nicht verbunden ist, und nach
       einem Neustart nachgeliefert werden (Integration enocean_eltako, Option „Nachlieferung über
       EnOcean Proxy“).
+  replay_max_age_s:
+    name: Höchstalter für Nachlieferung
+    description: Ältere Telegramme als diese Anzahl Sekunden werden nicht nachgeliefert.
+  allowed_clients:
+    name: Erlaubte Clients
+    description: Adressen oder Netze (z. B. 192.168.1.0/24), die sich verbinden dürfen, wenn die Ports freigegeben sind; leer = alle.
   log_level:
     name: Protokollstufe
 network:

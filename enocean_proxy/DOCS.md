@@ -25,6 +25,8 @@ gateways:
     port: 9101
 send_gap_ms: 10
 replay_size: 1000
+replay_max_age_s: 900
+allowed_clients: []
 log_level: info
 ```
 
@@ -34,16 +36,27 @@ log_level: info
 - **protocol**: `esp2` for FAM-USB, FGW14-USB and FAM14; `esp3` for USB300, MGW-ETH and others.
 - **port**: 9100 to 9103, one per gateway.
 - **send_gap_ms**: minimum gap between two telegrams sent to a gateway.
-- **replay_size**: how many telegrams are kept while Home Assistant is away.
+- **replay_size**: how many radio telegrams are kept while Home Assistant is away.
+- **replay_max_age_s**: older telegrams are not replayed (default 15 minutes).
+- **allowed_clients**: addresses or networks (e.g. `192.168.1.20`, `192.168.1.0/24`) that may
+  connect; empty = everyone who can reach the port.
 
 ## In the EnOcean Eltako integration
 
-Add the gateway with its model (e.g. FAM-USB) and the connection **network**: host
-`127.0.0.1`, the port from above. In the gateway's options, switch on **replay over EnOcean
-Proxy**. Only one app or integration may use a serial port: remove the port from every other
-program and let them connect to the proxy instead.
+After the app starts, each gateway shows up under **Settings → Devices & services** as
+discovered (**EnOcean Proxy**). Confirm it and pick the model; replay is switched on. Only one
+program may use a serial port: remove the port from every other program and let them connect
+to the proxy instead.
+
+## Network and security
+
+By default the ports are not opened on the host: Home Assistant reaches the app inside the
+Supervisor network. To connect programs elsewhere in your LAN (eo_man, a second Home Assistant),
+set host ports in the app's **Network** section and limit them with `allowed_clients`: anyone
+who can reach a port can send telegrams to your actuators.
 
 ## Limits
 
-- Answers to commands (e.g. reading the base ID) reach every program, as on a shared bus.
+- Replayed telegrams arrive with the time of the replay, not of their reception.
+- Commands for the FAM14 bus memory (ORG F0 and up) and their answers reach every program.
 - A serial port that disappears is reopened every few seconds; programs stay connected.

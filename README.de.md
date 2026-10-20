@@ -16,8 +16,8 @@ und funktioniert mit allem, was rohes ESP2 oder ESP3 über TCP spricht.
    **Einstellungen → Apps → App-Store → ⋮ → Repositories** mit
    `https://github.com/bertel2020/HA-Enocean-Proxy`.
 2. **EnOcean Proxy** installieren, die Gateways in der Konfiguration eintragen und starten.
-3. In der EnOcean-Eltako-Integration das Gateway über das Netzwerk anlegen: Host `127.0.0.1`,
-   Port 9100 (erstes Gateway).
+3. Die Gateways erscheinen in Home Assistant als entdeckt (**EnOcean Proxy**): bestätigen und
+   Modell wählen.
 
 Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
 
@@ -27,9 +27,13 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
   Abbruch selbst neu.
 - Jedes Telegramm vom Gateway geht an jedes verbundene Programm.
 - Telegramme der Programme werden an Rahmengrenzen getrennt und einzeln gesendet.
+- Die Antwort des Gateways auf einen Befehl geht an das Programm, das ihn gesendet hat.
 - Ein Programm, das direkt nach dem Verbinden `EOPX REPLAY` sendet, bekommt zuerst die
-  Telegramme, die ankamen, während kein solches Programm verbunden war, in ihrer Reihenfolge
-  (bis `replay_size`).
+  Funktelegramme, die ankamen, während kein solches Programm verbunden war, in ihrer Reihenfolge
+  (bis `replay_size`, keine älter als `replay_max_age_s`).
+- Home Assistant findet die Gateways selbst (Supervisor-Discovery). Die Ports bleiben im
+  Supervisor-Netz, solange sie nicht freigegeben sind; `allowed_clients` begrenzt, wer sich
+  verbinden darf.
 
 ## Entwicklung
 

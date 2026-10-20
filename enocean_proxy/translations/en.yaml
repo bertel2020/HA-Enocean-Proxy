@@ -14,6 +14,12 @@ configuration:
     description: >-
       Telegrams kept while Home Assistant is not connected, replayed after a restart
       (enocean_eltako integration, option "replay over EnOcean Proxy").
+  replay_max_age_s:
+    name: Maximum age for replay
+    description: Telegrams older than this many seconds are not replayed.
+  allowed_clients:
+    name: Allowed clients
+    description: Addresses or networks (e.g. 192.168.1.0/24) that may connect when you open the ports; empty = everyone.
   log_level:
     name: Log level
 network:

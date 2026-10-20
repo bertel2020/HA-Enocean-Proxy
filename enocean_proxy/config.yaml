@@ -1,5 +1,5 @@
 name: EnOcean Proxy
-version: "0.1.0"
+version: "0.2.0"
 slug: enocean_proxy
 description: Shares EnOcean gateways (FAM-USB, FGW14-USB, FAM14, USB300, ser2net) with several programs and replays telegrams missed during a Home Assistant restart
 url: https://github.com/bertel2020/HA-Enocean-Proxy
@@ -10,11 +10,17 @@ init: false
 startup: services
 uart: true
 usb: true
+hassio_api: true
+discovery:
+  - enocean_eltako
+watchdog: tcp://[HOST]:[PORT:9100]
+# Home Assistant reaches the app inside the Supervisor network; set a host port only for
+# programs elsewhere in the LAN (and limit them with allowed_clients)
 ports:
-  9100/tcp: 9100
-  9101/tcp: 9101
-  9102/tcp: 9102
-  9103/tcp: 9103
+  9100/tcp: null
+  9101/tcp: null
+  9102/tcp: null
+  9103/tcp: null
 ports_description:
   9100/tcp: First gateway
   9101/tcp: Second gateway
@@ -29,6 +35,8 @@ options:
       port: 9100
   send_gap_ms: 10
   replay_size: 1000
+  replay_max_age_s: 900
+  allowed_clients: []
   log_level: info
 schema:
   gateways:
@@ -39,4 +47,7 @@ schema:
       port: port
   send_gap_ms: int(0,1000)
   replay_size: int(0,100000)
+  replay_max_age_s: int(0,86400)
+  allowed_clients:
+    - str
   log_level: list(debug|info|warning|error)

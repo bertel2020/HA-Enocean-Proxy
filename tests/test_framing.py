@@ -32,3 +32,20 @@ def test_crc8_and_unknown_protocol() -> None:
     assert crc8(bytes.fromhex("00070701")) == 0x7A  # ESP3 header of a radio telegram
     with pytest.raises(ValueError):
         Splitter("esp4")
+
+
+def test_frame_kinds() -> None:
+    from enocean_proxy.framing import expects_response, is_radio, is_response
+
+    radio = esp3(bytes.fromhex("F6500021634330"))
+    response = esp3(b"\x00", packet_type=2)
+    command = esp3(b"\x08", packet_type=5)  # CO_RD_IDBASE
+    assert is_radio("esp3", radio) and not is_response("esp3", radio)
+    assert is_response("esp3", response) and not is_radio("esp3", response)
+    assert expects_response("esp3", command) and expects_response("esp3", radio)
+
+    bus_actor = bytes.fromhex("A55A8B0570000000000000013000")  # RMT ORG 05: actor answer
+    poll = bytes.fromhex("A55AABFC00000000000000010000")  # TCT ORG FC: FAM14 poll
+    assert is_radio("esp2", ESP2) and is_radio("esp2", bus_actor)
+    assert not is_radio("esp2", poll) and not expects_response("esp2", poll)
+    assert not is_response("esp2", bus_actor)

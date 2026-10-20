@@ -1,31 +1,43 @@
 """One proxy per gateway: keeps the gateway connection, serves any number of TCP clients.
 
-Every frame from the gateway goes to every client. Frames from clients are queued and
-written one at a time with a short gap, so two programs never interleave on the line.
+Every radio telegram from the gateway goes to every client. Frames from clients are queued
+and written one at a time with a short gap, so two programs never interleave on the line.
+The gateway's answer to a command goes back to the client that sent it (ESP3 answers every
+packet in order; ESP2 answers gateway commands); unsolicited messages go to everyone.
 For a client that only knows ser2net, the proxy is just another raw TCP gateway.
 
 Replay (optional, used by the enocean_eltako integration): a client that sends the line
-"EOPX REPLAY" first gets the frames that arrived while no replaying client was connected,
-e.g. during a Home Assistant restart, in their original order (up to replay_size).
+"EOPX REPLAY" first gets the radio telegrams that arrived while no replaying client was
+connected, e.g. during a Home Assistant restart, in their original order. Only radio
+telegrams are kept (no FAM14 polling), at most replay_size and none older than
+replay_max_age.
+
+Protection: clients can be limited to a list of addresses or networks, and a client that
+stops reading is disconnected before its unsent data grows without bound.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import logging
+import time
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 
-from .framing import Splitter
+from .framing import Splitter, expects_response, is_radio, is_response
 from .upstream import open_upstream
 
 _LOGGER = logging.getLogger(__name__)
 
 REPLAY_REQUEST = b"EOPX REPLAY\n"
 RECONNECT_DELAYS = (1, 2, 5, 10, 30)
+RESPONSE_TIMEOUT = 2.0  # seconds a client waits for the gateway's answer
+CLIENT_BUFFER_LIMIT = 256 * 1024  # bytes not yet delivered to a client before it is dropped
 Opener = Callable[[str, int], Awaitable[tuple[asyncio.StreamReader, asyncio.StreamWriter]]]
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
 @dataclass
@@ -34,15 +46,23 @@ class ProxyStats:
     to_gateway: int = 0
     dropped: int = 0  # client frames while the gateway was not connected
     replayed: int = 0
+    refused: int = 0  # clients outside the allowed networks
+    slow_clients: int = 0  # clients disconnected because they stopped reading
 
 
-@dataclass
+@dataclass(eq=False)
 class _Client:
     writer: asyncio.StreamWriter
     splitter: Splitter
+    peer: str
     replay: bool = False
     pending: bytearray = field(default_factory=bytearray)
     started: bool = False  # the replay request is only accepted as the very first bytes
+
+
+def parse_networks(entries: Iterable[str]) -> list[Network]:
+    """ "192.168.1.20", "192.168.1.0/24" ...; raises ValueError for anything else."""
+    return [ipaddress.ip_network(entry.strip(), strict=False) for entry in entries if entry.strip()]
 
 
 class GatewayProxy:
@@ -57,7 +77,10 @@ class GatewayProxy:
         host: str = "0.0.0.0",  # noqa: S104 - the app's network, mapped by the Supervisor
         send_gap: float = 0.01,
         replay_size: int = 1000,
+        replay_max_age: float = 900.0,
+        allowed: Iterable[Network] = (),
         opener: Opener = open_upstream,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.name = name
         self.device = device
@@ -66,11 +89,15 @@ class GatewayProxy:
         self.baudrate = baudrate
         self.host = host
         self.send_gap = send_gap
+        self.replay_max_age = replay_max_age
+        self.allowed = list(allowed)
         self.stats = ProxyStats()
         self._opener = opener
+        self._clock = clock
         self._clients: list[_Client] = []
-        self._outgoing: asyncio.Queue[bytes] = asyncio.Queue()
-        self._replay: deque[bytes] = deque(maxlen=replay_size)
+        self._outgoing: asyncio.Queue[tuple[_Client, bytes]] = asyncio.Queue()
+        self._replay: deque[tuple[float, bytes]] = deque(maxlen=replay_size)
+        self._awaiting: deque[tuple[_Client, float]] = deque()  # who gets the next answer
         self._upstream: asyncio.StreamWriter | None = None
         self._server: asyncio.Server | None = None
         self._tasks: list[asyncio.Task[None]] = []
@@ -135,21 +162,35 @@ class GatewayProxy:
                 warned = True
             self.connected.clear()
             self._upstream = None
+            self._awaiting.clear()
             writer.close()
 
     def _from_gateway(self, frame: bytes) -> None:
         self.stats.from_gateway += 1
-        if not any(c.replay for c in self._clients):
-            self._replay.append(frame)  # nobody to replay to yet: keep it
+        if is_response(self.protocol, frame) and (client := self._next_waiting()) is not None:
+            self._send(client, frame)  # the answer to this client's command
+            return
+        if is_radio(self.protocol, frame) and not any(c.replay for c in self._clients):
+            self._replay.append((self._clock(), frame))  # nobody to replay to yet: keep it
         for client in list(self._clients):
-            client.writer.write(frame)
+            self._send(client, frame)
+
+    def _next_waiting(self) -> _Client | None:
+        now = self._clock()
+        while self._awaiting:
+            client, deadline = self._awaiting.popleft()
+            if deadline >= now and client in self._clients:
+                return client
+        return None
 
     async def _writer_loop(self) -> None:
         while True:
-            frame = await self._outgoing.get()
+            client, frame = await self._outgoing.get()
             if self._upstream is None:
                 self.stats.dropped += 1
                 continue
+            if expects_response(self.protocol, frame):
+                self._awaiting.append((client, self._clock() + RESPONSE_TIMEOUT))
             self._upstream.write(frame)
             with contextlib.suppress(OSError):
                 await self._upstream.drain()
@@ -158,10 +199,25 @@ class GatewayProxy:
 
     # client side -----------------------------------------------------------------------------
 
+    def _permitted(self, peer: str) -> bool:
+        if not self.allowed:
+            return True
+        try:
+            address = ipaddress.ip_address(peer)
+        except ValueError:
+            return False
+        return any(address in network for network in self.allowed)
+
     async def _client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        client = _Client(writer, Splitter(self.protocol))
+        peername = writer.get_extra_info("peername")
+        peer = str(peername[0]) if peername else "?"
+        if not self._permitted(peer):
+            self.stats.refused += 1
+            _LOGGER.warning("%s: refused client %s (not in allowed_clients)", self.name, peer)
+            writer.close()
+            return
+        client = _Client(writer, Splitter(self.protocol), peer)
         self._clients.append(client)
-        peer = writer.get_extra_info("peername")
         _LOGGER.info("%s: client %s connected (%d)", self.name, peer, len(self._clients))
         try:
             while chunk := await reader.read(1024):
@@ -169,9 +225,23 @@ class GatewayProxy:
         except OSError:
             pass
         finally:
-            self._clients.remove(client)
+            if client in self._clients:
+                self._clients.remove(client)
             writer.close()
             _LOGGER.info("%s: client %s left (%d)", self.name, peer, len(self._clients))
+
+    def _send(self, client: _Client, frame: bytes) -> None:
+        """Write to a client; one that has stopped reading is dropped, not buffered forever."""
+        if client.writer.is_closing():
+            return
+        client.writer.write(frame)
+        transport = client.writer.transport
+        if transport.get_write_buffer_size() > CLIENT_BUFFER_LIMIT:
+            self.stats.slow_clients += 1
+            _LOGGER.warning("%s: client %s stopped reading, disconnected", self.name, client.peer)
+            if client in self._clients:
+                self._clients.remove(client)
+            transport.abort()
 
     def _from_client(self, client: _Client, chunk: bytes) -> None:
         client.pending += chunk
@@ -185,13 +255,14 @@ class GatewayProxy:
                 self._start_replay(client)
         data, client.pending = bytes(client.pending), bytearray()
         for frame in client.splitter.feed(data):
-            self._outgoing.put_nowait(frame)
+            self._outgoing.put_nowait((client, frame))
 
     def _start_replay(self, client: _Client) -> None:
-        frames = list(self._replay)
+        oldest = self._clock() - self.replay_max_age
+        frames = [frame for received, frame in self._replay if received >= oldest]
         self._replay.clear()
         client.replay = True
         for frame in frames:
-            client.writer.write(frame)
+            self._send(client, frame)
         self.stats.replayed += len(frames)
         _LOGGER.info("%s: replayed %d telegrams", self.name, len(frames))

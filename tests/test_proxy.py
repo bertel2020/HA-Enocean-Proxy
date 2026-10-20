@@ -146,3 +146,90 @@ async def test_main_without_gateways(tmp_path: Path) -> None:
         }
     )
     assert (proxies[0].port, proxies[0].send_gap, proxies[0].baudrate) == (9100, 0.02, 57600)
+
+
+BASE_ID_READ = bytes.fromhex("A55AAB5800000000000000000003")  # TCT, ORG 0x58
+BASE_ID_ANSWER = bytes.fromhex("A55A8B98FFB7448000000000000A")  # RMT, ORG 0x98
+BUS_POLL_ANSWER = bytes.fromhex("A55A8BF800000000000000000000")  # RMT, ORG 0xF8: FAM14 bus
+
+
+async def test_answers_go_to_the_asking_client(setup) -> None:
+    gateway, proxy = setup
+    (r1, w1), (r2, w2) = await _connect(proxy), await _connect(proxy)
+    await _until(lambda: proxy.clients == 2)
+    w1.write(BASE_ID_READ)
+    await _until(lambda: bytes(gateway.received) == BASE_ID_READ)
+    gateway.send(BASE_ID_ANSWER)
+    gateway.send(FRAME_A)
+    assert await r1.readexactly(28) == BASE_ID_ANSWER + FRAME_A
+    assert await r2.readexactly(14) == FRAME_A  # the other client only sees the telegram
+    gateway.send(BASE_ID_ANSWER)  # nobody asked: everyone gets it
+    assert await r2.readexactly(14) == BASE_ID_ANSWER
+    w1.close()
+    w2.close()
+
+
+async def test_replay_keeps_radio_only_and_drops_old(setup) -> None:
+    gateway, proxy = setup
+    now = [1000.0]
+    proxy._clock = lambda: now[0]
+    proxy.replay_max_age = 60
+    gateway.send(FRAME_A)  # will be too old
+    await _until(lambda: proxy.stats.from_gateway == 1)
+    now[0] += 120
+    gateway.send(BUS_POLL_ANSWER)  # FAM14 polling: never kept
+    gateway.send(FRAME_B)
+    await _until(lambda: proxy.stats.from_gateway == 3)
+    reader, writer = await _connect(proxy, replay=True)
+    assert await reader.readexactly(14) == FRAME_B
+    assert proxy.stats.replayed == 1
+    writer.close()
+
+
+async def test_allowed_clients_and_slow_clients(setup, monkeypatch) -> None:
+    from enocean_proxy.proxy import parse_networks
+
+    from enocean_proxy import proxy as module
+
+    gateway, proxy = setup
+    proxy.allowed = parse_networks(["192.168.1.0/24"])
+    reader, writer = await _connect(proxy)
+    assert await reader.read() == b""  # 127.0.0.1 is refused
+    assert proxy.stats.refused == 1
+    writer.close()
+
+    proxy.allowed = parse_networks(["127.0.0.1"])
+    monkeypatch.setattr(module, "CLIENT_BUFFER_LIMIT", -1)  # every write counts as too much
+    _reader, writer = await _connect(proxy)
+    await _until(lambda: proxy.clients == 1)
+    gateway.send(FRAME_A)
+    await _until(lambda: proxy.clients == 0)
+    assert proxy.stats.slow_clients == 1
+    writer.close()
+
+
+def test_configuration_errors() -> None:
+    gateway = {"name": "FAM", "device": "/dev/ttyUSB0", "protocol": "esp2", "port": 9100}
+    with pytest.raises(app.ConfigError, match="9200"):
+        app.proxies_from({"gateways": [{**gateway, "port": 9200}]})
+    with pytest.raises(app.ConfigError, match="same port"):
+        app.proxies_from({"gateways": [gateway, {**gateway, "name": "B"}]})
+    with pytest.raises(app.ConfigError, match="allowed_clients"):
+        app.proxies_from({"gateways": [gateway], "allowed_clients": ["not an address"]})
+
+
+def test_discovery_configs() -> None:
+    from enocean_proxy.discovery import discovery_configs
+
+    proxies = app.proxies_from(
+        {"gateways": [{"name": "FAM", "device": "/dev/x", "protocol": "esp2", "port": 9101}]}
+    )
+    assert discovery_configs("abc-enocean-proxy", proxies) == [
+        {
+            "host": "abc-enocean-proxy",
+            "port": 9101,
+            "name": "FAM",
+            "protocol": "esp2",
+            "replay": True,
+        }
+    ]
