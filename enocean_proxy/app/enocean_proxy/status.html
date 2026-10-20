@@ -200,6 +200,36 @@ const clock = (t) => {
 const metric = (value, label, warn) => `<div class="metric${warn ? " warn" : ""}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
 const kindLabel = () => ({ radio: T.radio, answer: T.answers, other: T.other });
 
+// Redraw only what changed, every 2 s: text being selected (to copy a frame) is left alone
+// until the next round, and the focus stays on the same button or link.
+const drawn = new WeakMap();
+let forced = false;  // a click of the user redraws even over a selection
+const FOCUS_KEYS = ["data-delete", "href"];
+const selecting = (el) => {
+  const sel = document.getSelection();
+  return !!sel && !sel.isCollapsed && el.contains(sel.anchorNode);
+};
+function draw(el, html) {
+  if (drawn.get(el) === html || (!forced && selecting(el))) return;
+  const active = document.activeElement;
+  const focus = el.contains(active) ? FOCUS_KEYS.map((a) => [a, active.getAttribute(a)]).find(([, v]) => v != null) : null;
+  el.innerHTML = html;
+  drawn.set(el, html);
+  if (focus) [...el.querySelectorAll(`[${focus[0]}]`)].find((n) => n.getAttribute(focus[0]) === focus[1])?.focus({ preventScroll: true });
+}
+function text(el, value) {
+  if (el.textContent !== value) el.textContent = value;
+}
+// newest frames come on top: someone scrolled down keeps looking at the same frames
+function drawFrames(el, html) {
+  const top = el.getBoundingClientRect().top + (el.querySelector("thead")?.getBoundingClientRect().height || 0);
+  const anchor = el.scrollTop > 0 ? [...el.querySelectorAll("tr[data-k]")].find((r) => r.getBoundingClientRect().bottom > top) : null;
+  const offset = anchor ? anchor.getBoundingClientRect().top - top : 0;
+  draw(el, html);
+  const row = anchor && [...el.querySelectorAll("tr[data-k]")].find((r) => r.dataset.k === anchor.dataset.k);
+  if (row) el.scrollTop += row.getBoundingClientRect().top - top - offset;
+}
+
 async function api(path, body) {
   const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -252,9 +282,9 @@ function build(data) {
 
 function renderCapture(data) {
   const c = data.capture;
-  $("cap-state").innerHTML = c.active
+  draw($("cap-state"), c.active
     ? `<span class="pill warn"><i></i>${T.captureRunning} · ${esc(c.file)} · ${c.frames} ${T.frames_} · ${duration(data.now - c.started)}</span>`
-    : `<span class="muted">${T.captureIdle}</span>`;
+    : `<span class="muted">${T.captureIdle}</span>`);
   const toggle = $("cap-toggle");
   toggle.textContent = c.active ? T.stop : T.start;
   toggle.classList.toggle("primary", !c.active);
@@ -262,47 +292,50 @@ function renderCapture(data) {
   const gw = data.gateways.find((g) => g.name === $("cap-gateway").value);
   const peers = gw ? [...new Set(gw.clients.map((cl) => cl.peer))] : [];
   const select = $("cap-peer");
-  const chosen = select.value;
-  select.innerHTML = `<option value="">${esc(T.nobody)}</option>` + peers.map((p) => `<option${p === chosen ? " selected" : ""}>${esc(p)}</option>`).join("");
+  if (select.dataset.peers !== peers.join("\n")) {  // an open list is not rebuilt every 2 s
+    const chosen = select.value;
+    select.innerHTML = `<option value="">${esc(T.nobody)}</option>` + peers.map((p) => `<option${p === chosen ? " selected" : ""}>${esc(p)}</option>`).join("");
+    select.dataset.peers = peers.join("\n");
+  }
   select.style.display = gw ? "" : "none";
-  $("cap-files").innerHTML = c.files.length
+  draw($("cap-files"), c.files.length
     ? `<ul>${c.files.map((f) => `<li><a href="api/captures/${encodeURIComponent(f.name)}" download>${esc(f.name)}</a><span class="muted">${size(f.size)}</span>${c.active && c.file === f.name ? "" : `<button class="danger" data-delete="${esc(f.name)}">${T.del}</button>`}</li>`).join("")}</ul>`
-    : `<div class="muted">${T.noFiles}</div>`;
+    : `<div class="muted">${T.noFiles}</div>`);
 }
 
 function renderGateway(g, i, now) {
   const s = g.stats;
-  $(`pill-${i}`).innerHTML = g.connected
+  draw($(`pill-${i}`), g.connected
     ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(now - g.connected_since)}` : ""}</span>`
     : g.last_error
       ? `<span class="pill bad"><i></i>${T.disconnected}</span>`
-      : `<span class="pill warn"><i></i>${T.connecting}</span>`;
-  $(`lock-${i}`).innerHTML = g.exclusive_peer ? `<span class="pill warn"><i></i>${esc(fill(T.alone, { peer: g.exclusive_peer }))}</span>` : "";
-  $(`sub-${i}`).textContent = [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · ");
-  $(`err-${i}`).innerHTML = g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : "";
-  $(`metrics-${i}`).innerHTML = metric(s.from_gateway, T.fromGateway) + metric(s.to_gateway, T.toGateway)
-    + metric(g.queue, T.queue, g.queue > 10) + metric(s.replayed, T.replayed);
+      : `<span class="pill warn"><i></i>${T.connecting}</span>`);
+  draw($(`lock-${i}`), g.exclusive_peer ? `<span class="pill warn"><i></i>${esc(fill(T.alone, { peer: g.exclusive_peer }))}</span>` : "");
+  text($(`sub-${i}`), [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · "));
+  draw($(`err-${i}`), g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : "");
+  draw($(`metrics-${i}`), metric(s.from_gateway, T.fromGateway) + metric(s.to_gateway, T.toGateway)
+    + metric(g.queue, T.queue, g.queue > 10) + metric(s.replayed, T.replayed));
   const issues = [[s.dropped, T.dropped], [s.refused, T.refused], [s.slow_clients, T.slow], [s.locked, T.locked]]
     .filter(([n]) => n > 0).map(([n, label]) => `<span class="bad">${Number(n)} ${esc(label)}</span>`);
-  $(`issues-${i}`).innerHTML = `<span class="muted">${T.issues}:</span> ${issues.length ? issues.join(" · ") : `<span class="ok">${T.noIssues}</span>`}`;
-  $(`clients-${i}`).innerHTML = g.clients.length
+  draw($(`issues-${i}`), `<span class="muted">${T.issues}:</span> ${issues.length ? issues.join(" · ") : `<span class="ok">${T.noIssues}</span>`}`);
+  draw($(`clients-${i}`), g.clients.length
     ? `<ul>${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}</li>`).join("")}</ul>`
-    : `<div class="muted">${T.noClients}</div>`;
+    : `<div class="muted">${T.noClients}</div>`);
   const r = g.replay;
-  $(`replay-${i}`).innerHTML = `<div class="bar"><div style="width:${r.size ? Math.min(100, (r.kept * 100) / r.size) : 0}%"></div></div>
-    <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>`;
+  draw($(`replay-${i}`), `<div class="bar"><div style="width:${r.size ? Math.min(100, (r.kept * 100) / r.size) : 0}%"></div></div>
+    <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>`);
   const d = g.duty_cycle;
   const level = d.of_limit >= 80 ? "var(--bad)" : d.of_limit >= 50 ? "var(--warn)" : "var(--accent)";
-  $(`duty-${i}`).innerHTML = `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${level}"></div></div>
-    <div class="sub" style="margin-top:6px">${Number(d.of_limit)} % ${T.ofLimit} · ${Number(d.telegrams)} ${T.telegramsShort}</div>`;
-  $(`allowed-${i}`).textContent = g.allowed_clients.length ? g.allowed_clients.join(", ") : T.unrestricted;
+  draw($(`duty-${i}`), `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${level}"></div></div>
+    <div class="sub" style="margin-top:6px">${Number(d.of_limit)} % ${T.ofLimit} · ${Number(d.telegrams)} ${T.telegramsShort}</div>`);
+  text($(`allowed-${i}`), g.allowed_clients.length ? g.allowed_clients.join(", ") : T.unrestricted);
   const labels = kindLabel();
   const frames = g.recent.filter((f) => !state.kind || f.kind === state.kind).slice().reverse();
-  $(`frames-${i}`).innerHTML = frames.length
-    ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr>
+  drawFrames($(`frames-${i}`), frames.length
+    ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr data-k="${esc(`${f.time}|${f.dir}|${f.hex}`)}">
         <td class="mono">${clock(f.time)}</td><td class="${f.dir === "tx" ? "tx" : "rx"}" title="${esc(f.dir === "tx" ? T.toGateway : T.fromGateway)}">${f.dir === "tx" ? "↑" : "↓"}</td>
         <td>${esc(labels[f.kind] || f.kind)}</td><td class="mono peer">${esc(f.peer || "")}</td><td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="empty">${T.none}</div>`;
+    : `<div class="empty">${T.none}</div>`);
 }
 
 function renderToolbar() {
@@ -313,9 +346,13 @@ function renderToolbar() {
   document.body.classList.toggle("stale", state.stale);
   $("pause").textContent = state.paused ? T.resume : T.pause;
   $("pause").setAttribute("aria-pressed", String(state.paused));
+  for (const button of $("kinds").children) button.setAttribute("aria-pressed", String(button.dataset.kind === state.kind));
+}
+
+function buildToolbar() {
   const labels = kindLabel();
   $("kinds").innerHTML = ["", "radio", "answer", "other"].map((k) =>
-    `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? labels[k] : T.all)}</button>`).join("");
+    `<button data-kind="${k}" aria-pressed="false">${esc(k ? labels[k] : T.all)}</button>`).join("");
 }
 
 function render() {
@@ -358,7 +395,7 @@ document.addEventListener("click", async (e) => {
   if (!target) return;
   const data = state.last;
   try {
-    if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; render(); }
+    if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; forced = true; render(); forced = false; }
     else if (target.id === "pause") { state.paused = !state.paused; render(); if (!state.paused) refresh(true); }
     else if (target.id === "cap-toggle") {
       if (data.capture.active) await api("api/capture/stop", {});
@@ -389,6 +426,7 @@ document.addEventListener("click", async (e) => {
 });
 document.addEventListener("change", (e) => { if (e.target.id === "cap-gateway") render(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(true); });
+buildToolbar();
 renderToolbar();
 refresh();
 setInterval(refresh, 2000);
