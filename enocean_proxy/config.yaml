@@ -12,7 +12,6 @@ uart: true
 usb: true
 hassio_api: true
 ingress: true
-ingress_port: 8099
 panel_icon: mdi:radio-tower
 panel_title: EnOcean Proxy
 discovery:
