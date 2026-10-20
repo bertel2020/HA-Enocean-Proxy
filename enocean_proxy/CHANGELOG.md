@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.3
+
+- Status page: only what changed is drawn again. Selected text (to copy a frame) stays,
+  the keyboard focus stays on its button, and the frame list stays on the frames being
+  read while new ones arrive; an open program list is no longer rebuilt every 2 s.
+- Status page: when the app does not answer, the last state is dimmed and marked
+  "no connection" with its time instead of looking current; polls no longer overlap.
+- Send frame refuses anything but hex digit pairs (spaces, `:` and `-` allowed) instead
+  of dropping it silently, and the confirmation shows the exact bytes.
+- API: a body that is no JSON object, or a test count that is no number, gets a 400 answer
+  instead of a closed connection.
+
 ## 0.5.2
 
 - Discovery: all gateways go to Home Assistant in one message. The Supervisor keeps one

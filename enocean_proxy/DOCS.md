@@ -54,7 +54,9 @@ to the proxy instead.
 connected or not (with the last error), the programs connected and whether they use replay,
 telegrams from and to the gateway, queue, dropped, replayed, refused and stalled clients,
 how full the replay buffer is, the allowed clients and the last 50 frames live. Filter the
-frames by radio telegrams, answers or other, or pause the list.
+frames by radio telegrams, answers or other, or pause the list. While text in the list is
+selected, for example to copy a frame, it is not redrawn. When the app stops answering, the
+page dims the last known state and shows its time.
 
 ## Capture (e.g. PCT14 and FAM14)
 
@@ -90,8 +92,9 @@ Normal use stays far below; a burst of many covers or a misbehaving automation s
 
 - **Gateway test** reads the base ID 20 times and reports how many answers came and how long
   they took. Nothing is sent over the air.
-- **Send frame** sends one complete ESP2 or ESP3 frame typed in hex and shows the gateway's
-  answer. It is really sent: actuators react.
+- **Send frame** sends one complete ESP2 or ESP3 frame typed in hex (pairs of hex digits,
+  separated at most by spaces, `:` or `-`) and shows the gateway's answer. The confirmation
+  shows the exact bytes. It is really sent: actuators react.
 
 ## Network and security
 
