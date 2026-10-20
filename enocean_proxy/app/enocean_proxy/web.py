@@ -123,6 +123,8 @@ class StatusServer:
             request = json.loads(body or b"{}")
         except ValueError as err:
             raise ApiError("invalid JSON") from err
+        if not isinstance(request, dict):
+            raise ApiError("the request must be a JSON object")
         if route == "capture/start":
             name = self.captures.start(request.get("gateway"), request.get("exclusive_peer"))
             return _json({"file": name})
@@ -141,7 +143,10 @@ class StatusServer:
             return _json({"sent": True, "answer": answer.hex(" ") if answer else None})
         if route == "test":
             proxy = self._sendable(request.get("gateway"))
-            count = max(1, min(100, int(request.get("count", 20))))
+            try:
+                count = max(1, min(100, int(request.get("count", 20))))
+            except (TypeError, ValueError) as err:
+                raise ApiError("count must be a number") from err
             try:
                 return _json(await proxy.gateway_test(count))
             except ConnectionError as err:

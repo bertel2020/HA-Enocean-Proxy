@@ -391,6 +391,10 @@ async def test_capture_lock_send_and_gateway_test(setup, tmp_path: Path) -> None
     assert sent["answer"] == BASE_ID_ANSWER.hex(" ")
     line, error = await post("/api/send", {"gateway": "test", "hex": "A55A00"})
     assert line.endswith("400 Bad Request") and "frame" in error["error"]
+    line, error = await post("/api/test", {"gateway": "test", "count": "many"})
+    assert line.endswith("400 Bad Request") and "count" in error["error"]
+    line, error = await post("/api/send", [])  # type: ignore[arg-type]
+    assert line.endswith("400 Bad Request") and "object" in error["error"]
     task.cancel()
     reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
     form = b"gateway=test&hex=00"
