@@ -8,7 +8,6 @@ arch:
   - amd64
 init: false
 startup: services
-boot: auto
 uart: true
 usb: true
 ports:

@@ -38,9 +38,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [amd64, aarch64]
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: aarch64
+            platform: linux/arm64
     steps:
       - uses: actions/checkout@v7
-      - uses: home-assistant/builder@master
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the app image (not pushed; the Supervisor builds it on install)
+        uses: docker/build-push-action@v6
         with:
-          args: --test --${{ matrix.arch }} --target /data/enocean_proxy --docker-hub ghcr.io/bertel2020
+          context: enocean_proxy
+          platforms: ${{ matrix.platform }}
+          push: false
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base-python:3.14-alpine3.24
