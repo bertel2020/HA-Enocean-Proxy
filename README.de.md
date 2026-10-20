@@ -31,6 +31,8 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
 - Ein Programm, das direkt nach dem Verbinden `EOPX REPLAY` sendet, bekommt zuerst die
   Funktelegramme, die ankamen, während kein solches Programm verbunden war, in ihrer Reihenfolge
   (bis `replay_size`, keine älter als `replay_max_age_s`).
+- Eine Statusseite in der Seitenleiste (Ingress) zeigt Verbindungen, Programme, Zähler,
+  den Nachlieferungs-Puffer und die letzten Rahmen live.
 - Home Assistant findet die Gateways selbst (Supervisor-Discovery). Die Ports bleiben im
   Supervisor-Netz, solange sie nicht freigegeben sind; `allowed_clients` begrenzt, wer sich
   verbinden darf.

@@ -48,6 +48,14 @@ discovered (**EnOcean Proxy**). Confirm it and pick the model; replay is switche
 program may use a serial port: remove the port from every other program and let them connect
 to the proxy instead.
 
+## Status page
+
+**EnOcean Proxy** in the sidebar (or **Open web UI** on the app page) shows each gateway:
+connected or not (with the last error), the programs connected and whether they use replay,
+telegrams from and to the gateway, queue, dropped, replayed, refused and stalled clients,
+how full the replay buffer is, the allowed clients and the last 50 frames live. Filter the
+frames by radio telegrams, answers or other, or pause the list.
+
 ## Network and security
 
 By default the ports are not opened on the host: Home Assistant reaches the app inside the

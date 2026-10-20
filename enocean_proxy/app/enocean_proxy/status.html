@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnOcean Proxy</title>
+<style>
+  :root {
+    --bg: #f5f5f5; --surface: #fff; --text: #212121; --muted: #6f6f6f; --line: #e3e3e3;
+    --soft: #efefef; --accent: #03a9f4; --ok: #2e7d32; --bad: #c62828; --warn: #b26a00;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111; --surface: #1c1c1c; --text: #e6e6e6; --muted: #9a9a9a; --line: #2c2c2c;
+      --soft: #262626; --accent: #4fc3f7; --ok: #66bb6a; --bad: #ef5350; --warn: #ffb74d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 Roboto, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 22px; font-weight: 400; }
+  h2 { margin: 0; font-size: 17px; font-weight: 500; }
+  h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--mono); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; display: grid; gap: 14px; min-width: 0; }
+  .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
+    border-radius: 999px; font-size: 12px; background: var(--soft); color: var(--muted); }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .metric { background: var(--soft); border-radius: 8px; padding: 8px 10px; }
+  .metric b { display: block; font-size: 20px; font-weight: 400; }
+  .metric span { font-size: 12px; color: var(--muted); }
+  .metric.warn b { color: var(--bad); }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  li { display: flex; gap: 8px; align-items: center; }
+  .tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+  .tag.accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .bar { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .frames-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .frames-head .spacer { flex: 1; }
+  button, select { font: inherit; font-size: 13px; color: var(--text); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  .frames { overflow: auto; max-height: 320px; border: 1px solid var(--line); border-radius: 8px; }
+  .frames th { position: sticky; top: 0; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  td, th { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { border-top: 0; color: var(--muted); font-weight: 500; }
+  td.hex { font-family: var(--mono); }
+  .rx { color: var(--muted); }
+  .tx { color: var(--accent); }
+  .empty { color: var(--muted); padding: 12px; text-align: center; }
+  .error { color: var(--bad); }
+  @media (max-width: 600px) {
+    main { padding: 10px; }
+    .metrics { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .metric { padding: 6px 8px; }
+    .metric b { font-size: 16px; }
+    .metric span { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>EnOcean Proxy</h1><span class="muted" id="meta"></span></header>
+  <div id="gateways"></div>
+</main>
+<script>
+const DE = (navigator.language || "en").toLowerCase().startsWith("de");
+const T = DE ? {
+  connected: "Verbunden", disconnected: "Getrennt", since: "seit", lastError: "Letzter Fehler",
+  port: "Port", clients: "Programme", noClients: "Kein Programm verbunden", replayTag: "Nachlieferung",
+  fromGateway: "vom Gateway", toGateway: "zum Gateway", queue: "Warteschlange", dropped: "verworfen",
+  replayed: "nachgeliefert", refused: "abgewiesen", slow: "getrennt (hängt)",
+  replay: "Puffer für Nachlieferung", kept: "Telegramme", oldest: "ältestes", maxAge: "höchstens",
+  allowed: "Erlaubte Clients", everyone: "alle im Supervisor-Netz / freigegebene Ports",
+  frames: "Letzte Rahmen", pause: "Anhalten", resume: "Fortsetzen", all: "Alle", radio: "Funk",
+  answers: "Antworten", other: "Sonstige", time: "Zeit", dir: "Richtung", kind: "Art", peer: "Programm",
+  data: "Rahmen", none: "Noch keine Rahmen.", running: "läuft seit", offline: "Keine Verbindung zur App",
+  version: "Version",
+} : {
+  connected: "Connected", disconnected: "Disconnected", since: "since", lastError: "Last error",
+  port: "Port", clients: "Programs", noClients: "No program connected", replayTag: "replay",
+  fromGateway: "from gateway", toGateway: "to gateway", queue: "queue", dropped: "dropped",
+  replayed: "replayed", refused: "refused", slow: "disconnected (stalled)",
+  replay: "Replay buffer", kept: "telegrams", oldest: "oldest", maxAge: "at most",
+  allowed: "Allowed clients", everyone: "everyone in the Supervisor network / opened ports",
+  frames: "Recent frames", pause: "Pause", resume: "Resume", all: "All", radio: "Radio",
+  answers: "Answers", other: "Other", time: "Time", dir: "Direction", kind: "Kind", peer: "Program",
+  data: "Frame", none: "No frames yet.", running: "running for", offline: "No connection to the app",
+  version: "Version",
+};
+document.documentElement.lang = DE ? "de" : "en";
+const state = { paused: false, kind: "", last: null };
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const duration = (s) => {
+  s = Math.max(0, Math.round(s));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) return `${Math.round(s / 60)} min`;
+  if (s < 86400) return `${(s / 3600).toFixed(1)} h`;
+  return `${(s / 86400).toFixed(1)} d`;
+};
+const clock = (t) => {
+  const d = new Date(t * 1000);
+  return d.toLocaleTimeString(DE ? "de-DE" : "en-GB", { hour12: false }) + "." + String(d.getMilliseconds()).padStart(3, "0");
+};
+const metric = (value, label, warn) => `<div class="metric${warn ? " warn" : ""}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
+
+function gatewayCard(g, now) {
+  const s = g.stats;
+  const pill = g.connected
+    ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(now - g.connected_since)}` : ""}</span>`
+    : `<span class="pill bad"><i></i>${T.disconnected}</span>`;
+  const sub = [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · ");
+  const clients = g.clients.length
+    ? `<ul>${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}</li>`).join("")}</ul>`
+    : `<div class="muted">${T.noClients}</div>`;
+  const r = g.replay;
+  const fill = r.size ? Math.min(100, (r.kept * 100) / r.size) : 0;
+  const frames = g.recent.filter((f) => !state.kind || f.kind === state.kind).slice().reverse();
+  const kindLabel = { radio: T.radio, answer: T.answers, other: T.other };
+  const rows = frames.length
+    ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr>
+        <td class="mono">${clock(f.time)}</td>
+        <td class="${f.dir}">${f.dir === "rx" ? "↓" : "↑"}</td>
+        <td>${esc(kindLabel[f.kind] || f.kind)}</td>
+        <td class="mono">${esc(f.peer || "")}</td>
+        <td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${T.none}</div>`;
+  return `<section class="card">
+    <div class="top"><h2>${esc(g.name)}</h2>${pill}</div>
+    <div class="sub mono">${esc(sub)}</div>
+    ${g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : ""}
+    <div class="metrics">
+      ${metric(s.from_gateway, T.fromGateway)}${metric(s.to_gateway, T.toGateway)}
+      ${metric(g.queue, T.queue, g.queue > 10)}${metric(s.dropped, T.dropped, s.dropped > 0)}
+      ${metric(s.replayed, T.replayed)}${metric(s.refused, T.refused, s.refused > 0)}
+      ${metric(s.slow_clients, T.slow, s.slow_clients > 0)}
+    </div>
+    <div class="grid">
+      <div><h3>${T.clients} (${g.clients.length})</h3>${clients}</div>
+      <div><h3>${T.replay}</h3>
+        <div class="bar"><div style="width:${fill}%"></div></div>
+        <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>
+      </div>
+      <div><h3>${T.allowed}</h3><div class="sub mono">${g.allowed_clients.length ? esc(g.allowed_clients.join(", ")) : esc(T.everyone)}</div></div>
+    </div>
+    <div class="frames-head"><h3 style="margin:0">${T.frames}</h3><span class="spacer"></span>
+      ${["", "radio", "answer", "other"].map((k) => `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? kindLabel[k] : T.all)}</button>`).join("")}
+      <button data-pause aria-pressed="${state.paused}">${state.paused ? T.resume : T.pause}</button>
+    </div>
+    <div class="frames">${rows}</div>
+  </section>`;
+}
+
+function render() {
+  const data = state.last;
+  if (!data) return;
+  document.getElementById("meta").textContent =
+    `${T.version} ${data.version || "?"} · ${T.running} ${duration(data.now - data.started)}`;
+  document.getElementById("gateways").innerHTML =
+    `<div style="display:grid;gap:16px">${data.gateways.map((g) => gatewayCard(g, data.now)).join("")}</div>`;
+}
+
+async function refresh() {
+  if (state.paused) return;
+  try {
+    const response = await fetch("api/status", { cache: "no-store" });
+    state.last = await response.json();
+    render();
+  } catch (err) {
+    document.getElementById("meta").innerHTML = `<span class="error">${T.offline}</span>`;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const kind = e.target.closest("[data-kind]");
+  if (kind) { state.kind = kind.dataset.kind; render(); return; }
+  if (e.target.closest("[data-pause]")) { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
+});
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

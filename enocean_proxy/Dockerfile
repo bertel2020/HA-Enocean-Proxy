@@ -1,5 +1,7 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
+ARG BUILD_VERSION
+ENV APP_VERSION=${BUILD_VERSION}
 
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import signal
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any
 
 from .discovery import announce
 from .proxy import GatewayProxy, parse_networks
+from .web import StatusServer
 
 OPTIONS = Path("/data/options.json")
 PORTS = range(9100, 9104)  # the ports the app declares (config.yaml)
@@ -64,12 +66,15 @@ async def main(path: Path = OPTIONS) -> int:
         return 1
     for proxy in proxies:
         await proxy.start()
+    status = StatusServer(proxies, version=os.environ.get("APP_VERSION", ""))
+    await status.start()  # the ingress page
     await announce(proxies)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
     await stop.wait()
+    await status.close()
     for proxy in proxies:
         await proxy.close()
     return 0

@@ -25,7 +25,8 @@ import logging
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 from .framing import Splitter, expects_response, is_radio, is_response
 from .upstream import open_upstream
@@ -36,6 +37,7 @@ REPLAY_REQUEST = b"EOPX REPLAY\n"
 RECONNECT_DELAYS = (1, 2, 5, 10, 30)
 RESPONSE_TIMEOUT = 2.0  # seconds a client waits for the gateway's answer
 CLIENT_BUFFER_LIMIT = 256 * 1024  # bytes not yet delivered to a client before it is dropped
+RECENT_FRAMES = 200  # shown on the status page
 Opener = Callable[[str, int], Awaitable[tuple[asyncio.StreamReader, asyncio.StreamWriter]]]
 Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 
@@ -102,6 +104,9 @@ class GatewayProxy:
         self._server: asyncio.Server | None = None
         self._tasks: list[asyncio.Task[None]] = []
         self.connected = asyncio.Event()
+        self.connected_since: float | None = None  # time.time()
+        self.last_error: str | None = None
+        self.recent: deque[dict[str, Any]] = deque(maxlen=RECENT_FRAMES)
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(self._client, self.host, self.port)
@@ -120,9 +125,10 @@ class GatewayProxy:
                 await task
         if self._server is not None:
             self._server.close()
-            await self._server.wait_closed()
-        for client in list(self._clients):
+        for client in list(self._clients):  # before waiting: wait_closed waits for clients
             client.writer.close()
+        if self._server is not None:
+            await self._server.wait_closed()
         if self._upstream is not None:
             self._upstream.close()
 
@@ -139,6 +145,7 @@ class GatewayProxy:
             try:
                 reader, writer = await self._opener(self.device, self.baudrate)
             except OSError as err:
+                self.last_error = str(err)
                 delay = RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)]
                 attempt += 1
                 (_LOGGER.debug if warned else _LOGGER.warning)(
@@ -152,6 +159,8 @@ class GatewayProxy:
             attempt, warned = 0, False
             self._upstream = writer
             self.connected.set()
+            self.connected_since = time.time()
+            self.last_error = None
             splitter = Splitter(self.protocol)
             try:
                 while chunk := await reader.read(1024):
@@ -159,14 +168,35 @@ class GatewayProxy:
                         self._from_gateway(frame)
             except OSError as err:
                 _LOGGER.warning("%s: connection to %s lost: %s", self.name, self.device, err)
+                self.last_error = str(err)
                 warned = True
             self.connected.clear()
+            self.connected_since = None
             self._upstream = None
             self._awaiting.clear()
             writer.close()
 
+    def _remember(self, direction: str, frame: bytes, peer: str | None = None) -> None:
+        kind = (
+            "radio"
+            if is_radio(self.protocol, frame)
+            else "answer"
+            if is_response(self.protocol, frame)
+            else "other"
+        )
+        self.recent.append(
+            {
+                "time": time.time(),
+                "dir": direction,
+                "kind": kind,
+                "hex": frame.hex(" "),
+                "peer": peer,
+            }
+        )
+
     def _from_gateway(self, frame: bytes) -> None:
         self.stats.from_gateway += 1
+        self._remember("rx", frame)
         if is_response(self.protocol, frame) and (client := self._next_waiting()) is not None:
             self._send(client, frame)  # the answer to this client's command
             return
@@ -192,6 +222,7 @@ class GatewayProxy:
             if expects_response(self.protocol, frame):
                 self._awaiting.append((client, self._clock() + RESPONSE_TIMEOUT))
             self._upstream.write(frame)
+            self._remember("tx", frame, client.peer)
             with contextlib.suppress(OSError):
                 await self._upstream.drain()
             self.stats.to_gateway += 1
@@ -266,3 +297,29 @@ class GatewayProxy:
             self._send(client, frame)
         self.stats.replayed += len(frames)
         _LOGGER.info("%s: replayed %d telegrams", self.name, len(frames))
+
+    def status(self) -> dict[str, Any]:
+        """Everything the status page shows about this gateway."""
+        now = self._clock()
+        replay_ages = [now - received for received, _frame in self._replay]
+        return {
+            "name": self.name,
+            "device": self.device,
+            "protocol": self.protocol,
+            "baudrate": None if self.device.startswith("tcp://") else self.baudrate,
+            "port": self.port,
+            "connected": self.connected.is_set(),
+            "connected_since": self.connected_since,
+            "last_error": self.last_error,
+            "clients": [{"peer": c.peer, "replay": c.replay} for c in self._clients],
+            "stats": asdict(self.stats),
+            "queue": self._outgoing.qsize(),
+            "replay": {
+                "kept": len(self._replay),
+                "size": self._replay.maxlen,
+                "oldest_s": round(max(replay_ages), 1) if replay_ages else None,
+                "max_age_s": self.replay_max_age,
+            },
+            "allowed_clients": [str(network) for network in self.allowed],
+            "recent": list(self.recent)[-50:],
+        }

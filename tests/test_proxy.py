@@ -245,3 +245,48 @@ async def test_health_check(setup, tmp_path: Path) -> None:
     options.write_text(json.dumps({"gateways": [{"port": 1}]}))
     assert not await asyncio.to_thread(healthy, options)
     assert not await asyncio.to_thread(healthy, tmp_path / "missing.json")
+
+
+async def _get(port: int, path: str) -> tuple[str, bytes]:
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    writer.write(f"GET {path} HTTP/1.1\r\nHost: x\r\n\r\n".encode())
+    try:
+        response = await reader.read()
+    except ConnectionResetError:  # refused peers are cut off at once
+        response = b""
+    writer.close()
+    head, _, body = response.partition(b"\r\n\r\n")
+    return head.decode().split("\r\n")[0], body
+
+
+async def test_status_page(setup) -> None:
+    from enocean_proxy.web import StatusServer
+
+    gateway, proxy = setup
+    _reader, writer = await _connect(proxy, replay=True)
+    await _until(lambda: proxy.clients == 1)
+    writer.write(COMMAND)
+    gateway.send(FRAME_A)
+    await _until(lambda: proxy.stats.to_gateway == 1 and proxy.stats.from_gateway == 1)
+    server = StatusServer([proxy], version="0.3.0", host="127.0.0.1", port=0, peers=None)
+    await server.start()
+    line, body = await _get(server.port, "/api/status")
+    assert line == "HTTP/1.1 200 OK"
+    status = json.loads(body)
+    (gw,) = status["gateways"]
+    assert status["version"] == "0.3.0"
+    assert gw["connected"] and gw["protocol"] == "esp2"
+    assert gw["clients"] == [{"peer": "127.0.0.1", "replay": True}]
+    recent = {f["dir"]: f for f in gw["recent"]}  # order of rx and tx is not fixed
+    assert (recent["tx"]["kind"], recent["rx"]["kind"]) == ("radio", "radio")
+    assert recent["tx"]["peer"] == "127.0.0.1" and recent["rx"]["peer"] is None
+    line, body = await _get(server.port, "/")
+    assert line == "HTTP/1.1 200 OK" and b"EnOcean Proxy" in body
+    assert (await _get(server.port, "/nothing"))[0] == "HTTP/1.1 404 Not Found"
+    await server.close()
+
+    only_ingress = StatusServer([proxy], host="127.0.0.1", port=0)  # 172.30.32.2 only
+    await only_ingress.start()
+    assert await _get(only_ingress.port, "/api/status") == ("", b"")
+    await only_ingress.close()
+    writer.close()

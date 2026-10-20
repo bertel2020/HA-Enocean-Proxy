@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Status page in Home Assistant's sidebar (ingress): per gateway the connection, the
+  programs connected (with replay), counters, the replay buffer, allowed clients and the
+  last 50 frames live, filterable by kind; light and dark, phone friendly.
+- Stopping the app no longer hangs while programs are still connected.
+
 ## 0.2.0
 
 - Home Assistant finds the gateways by itself (Supervisor discovery): set up from the

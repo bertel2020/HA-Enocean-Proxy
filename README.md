@@ -29,6 +29,8 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
 - A program that sends `EOPX REPLAY` right after connecting first gets the radio telegrams
   that arrived while no such program was connected, in order (up to `replay_size`, none
   older than `replay_max_age_s`).
+- A status page in the sidebar (ingress) shows connections, programs, counters, the
+  replay buffer and the last frames live.
 - Home Assistant finds the gateways itself (Supervisor discovery). The ports stay inside the
   Supervisor network unless you open them; `allowed_clients` limits who may connect.
 
