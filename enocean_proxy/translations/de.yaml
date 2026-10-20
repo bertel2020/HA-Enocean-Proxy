@@ -1,0 +1,24 @@
+configuration:
+  gateways:
+    name: Gateways
+    description: >-
+      Ein Eintrag je Gateway. device ist der serielle Port (z. B. /dev/serial/by-id/...) oder
+      tcp://host:port für ser2net oder ein LAN-Gateway; port ist der TCP-Port, mit dem sich
+      Programme verbinden (9100 bis 9103); protocol esp2 für FAM-USB, FGW14-USB und FAM14,
+      esp3 für USB300, MGW-ETH und die meisten anderen.
+  send_gap_ms:
+    name: Pause zwischen Telegrammen
+    description: Mindestabstand in Millisekunden zwischen zwei an ein Gateway gesendeten Telegrammen.
+  replay_size:
+    name: Puffer für Nachlieferung
+    description: >-
+      Telegramme, die gespeichert werden, solange Home Assistant nicht verbunden ist, und nach
+      einem Neustart nachgeliefert werden (Integration enocean_eltako, Option „Nachlieferung über
+      EnOcean Proxy“).
+  log_level:
+    name: Protokollstufe
+network:
+  9100/tcp: Erstes Gateway
+  9101/tcp: Zweites Gateway
+  9102/tcp: Drittes Gateway
+  9103/tcp: Viertes Gateway

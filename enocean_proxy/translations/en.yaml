@@ -1,0 +1,23 @@
+configuration:
+  gateways:
+    name: Gateways
+    description: >-
+      One entry per gateway. device is the serial port (e.g. /dev/serial/by-id/...) or
+      tcp://host:port for ser2net or a LAN gateway; port is the TCP port clients connect to
+      (9100 to 9103); protocol esp2 for FAM-USB, FGW14-USB and FAM14, esp3 for USB300,
+      MGW-ETH and most others.
+  send_gap_ms:
+    name: Pause between telegrams
+    description: Minimum gap in milliseconds between two telegrams sent to a gateway.
+  replay_size:
+    name: Replay buffer
+    description: >-
+      Telegrams kept while Home Assistant is not connected, replayed after a restart
+      (enocean_eltako integration, option "replay over EnOcean Proxy").
+  log_level:
+    name: Log level
+network:
+  9100/tcp: First gateway
+  9101/tcp: Second gateway
+  9102/tcp: Third gateway
+  9103/tcp: Fourth gateway
