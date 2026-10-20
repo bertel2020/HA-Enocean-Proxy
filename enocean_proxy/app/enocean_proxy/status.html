@@ -151,7 +151,7 @@ const T = DE ? {
   answer: "Antwort", noAnswer: "keine Antwort erwartet oder erhalten", error: "Fehler",
   connecting: "Verbindet …", staleLabel: "Keine Verbindung", staleSince: "Stand von {time}", issues: "Auffälligkeiten", noIssues: "keine", live: "Live", pausedLabel: "Pausiert",
   ofLimit: "von 1 %", telegramsShort: "Telegramme", unrestricted: "keine Einschränkung (nur Supervisor-Netz, solange keine Ports freigegeben sind)",
-  confirmSend: "Diesen Rahmen wirklich an das Gateway senden? Aktoren können schalten.", hexLabel: "Rahmen in Hex",
+  confirmSend: "Diesen Rahmen wirklich an das Gateway senden? Aktoren können schalten.", badHex: "Nur Hex-Zeichen in Paaren (0–9, A–F), getrennt höchstens durch Leerzeichen, : oder -", hexLabel: "Rahmen in Hex",
   gatewayLabel: "Gateway für den Mitschnitt", peerLabel: "Programm, das allein senden darf", show: "Anzeigen",
 } : {
   connected: "Connected", disconnected: "Disconnected", since: "since", lastError: "Last error",
@@ -176,7 +176,7 @@ const T = DE ? {
   answer: "Answer", noAnswer: "no answer expected or received", error: "Error",
   connecting: "Connecting …", staleLabel: "No connection", staleSince: "as of {time}", issues: "Issues", noIssues: "none", live: "Live", pausedLabel: "Paused",
   ofLimit: "of 1 %", telegramsShort: "telegrams", unrestricted: "no restriction (Supervisor network only while no ports are opened)",
-  confirmSend: "Really send this frame to the gateway? Actuators may switch.", hexLabel: "Frame in hex",
+  confirmSend: "Really send this frame to the gateway? Actuators may switch.", badHex: "Hex digits in pairs only (0–9, A–F), separated at most by spaces, : or -", hexLabel: "Frame in hex",
   gatewayLabel: "Gateway to capture", peerLabel: "Program that may send alone", show: "Show",
 };
 document.documentElement.lang = DE ? "de" : "en";
@@ -413,8 +413,12 @@ document.addEventListener("click", async (e) => {
       target.disabled = false;
     } else if (target.dataset.send !== undefined) {
       const i = Number(target.dataset.send);
-      if (!confirm(T.confirmSend)) return;
-      const r = await api("api/send", { gateway: data.gateways[i].name, hex: $(`hex-${i}`).value.replace(/[^0-9a-fA-F]/g, "") });
+      // a typo is refused, never dropped: the confirmation shows the exact bytes that go out
+      const raw = $(`hex-${i}`).value;
+      const hex = raw.replace(/[\s:-]/g, "");
+      if (!hex || /[^0-9a-fA-F]/.test(hex) || hex.length % 2) throw new Error(T.badHex);
+      if (!confirm(`${T.confirmSend}\n\n${hex.toUpperCase().match(/../g).join(" ")}`)) return;
+      const r = await api("api/send", { gateway: data.gateways[i].name, hex });
       $(`send-${i}`).textContent = `${T.answer}: ${r.answer || T.noAnswer}`;
     }
   } catch (err) {
