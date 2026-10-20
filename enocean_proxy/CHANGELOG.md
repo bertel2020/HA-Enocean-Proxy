@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Discovery: all gateways go to Home Assistant in one message. The Supervisor keeps one
+  discovery message per app, so with several gateways only the last one used to appear.
+  Needs the EnOcean Eltako integration from 2026-10-20 or newer; older versions see the
+  first gateway only.
+
 ## 0.5.1
 
 - Status page reviewed: four main figures plus an "issues" line instead of eight tiles

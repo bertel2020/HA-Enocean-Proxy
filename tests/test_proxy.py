@@ -218,22 +218,26 @@ def test_configuration_errors() -> None:
         app.proxies_from({"gateways": [gateway], "allowed_clients": ["not an address"]})
 
 
-def test_discovery_configs() -> None:
-    from enocean_proxy.discovery import discovery_configs
+def test_discovery_config_lists_all_gateways() -> None:
+    from enocean_proxy.discovery import discovery_config
 
     proxies = app.proxies_from(
-        {"gateways": [{"name": "FAM", "device": "/dev/x", "protocol": "esp2", "port": 9101}]}
-    )
-    assert discovery_configs("abc-enocean-proxy", proxies) == [
         {
-            "host": "abc-enocean-proxy",
-            "port": 9101,
-            "name": "FAM",
-            "protocol": "esp2",
-            "replay": True,
-            "status_port": 9199,
+            "gateways": [
+                {"name": "FAM", "device": "/dev/x", "protocol": "esp2", "port": 9101},
+                {"name": "MGW", "device": "tcp://h:5100", "protocol": "esp3", "port": 9102},
+            ]
         }
-    ]
+    )
+    assert discovery_config("abc-enocean-proxy", proxies) == {
+        "host": "abc-enocean-proxy",
+        "status_port": 9199,
+        "replay": True,
+        "gateways": [
+            {"name": "FAM", "port": 9101, "protocol": "esp2"},
+            {"name": "MGW", "port": 9102, "protocol": "esp3"},
+        ],
+    }
 
 
 async def test_health_check(setup, tmp_path: Path) -> None:
