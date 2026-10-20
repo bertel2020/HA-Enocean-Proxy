@@ -70,12 +70,26 @@
     .metric b { font-size: 16px; }
     .metric span { font-size: 11px; }
   }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  input[type=text] { font: inherit; font-size: 13px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; flex: 1 1 260px; }
+  button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  .result { font-size: 13px; }
+  .note { font-size: 12px; color: var(--muted); }
+  .pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .files a { color: var(--accent); text-decoration: none; }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase;
+    letter-spacing: .04em; font-weight: 500; }
+  details[open] > summary { margin-bottom: 10px; }
 </style>
 </head>
 <body>
 <main>
   <header><h1>EnOcean Proxy</h1><span class="muted" id="meta"></span></header>
-  <div id="gateways"></div>
+  <section class="card" id="capture"></section>
+  <div id="gateways" style="display:grid;gap:16px"></div>
 </main>
 <script>
 const DE = (navigator.language || "en").toLowerCase().startsWith("de");
@@ -83,29 +97,50 @@ const T = DE ? {
   connected: "Verbunden", disconnected: "Getrennt", since: "seit", lastError: "Letzter Fehler",
   port: "Port", clients: "Programme", noClients: "Kein Programm verbunden", replayTag: "Nachlieferung",
   fromGateway: "vom Gateway", toGateway: "zum Gateway", queue: "Warteschlange", dropped: "verworfen",
-  replayed: "nachgeliefert", refused: "abgewiesen", slow: "getrennt (hängt)",
+  replayed: "nachgeliefert", refused: "abgewiesen", slow: "getrennt (hängt)", locked: "gesperrt",
   replay: "Puffer für Nachlieferung", kept: "Telegramme", oldest: "ältestes", maxAge: "höchstens",
   allowed: "Erlaubte Clients", everyone: "alle im Supervisor-Netz / freigegebene Ports",
   frames: "Letzte Rahmen", pause: "Anhalten", resume: "Fortsetzen", all: "Alle", radio: "Funk",
   answers: "Antworten", other: "Sonstige", time: "Zeit", dir: "Richtung", kind: "Art", peer: "Programm",
   data: "Rahmen", none: "Noch keine Rahmen.", running: "läuft seit", offline: "Keine Verbindung zur App",
-  version: "Version",
+  version: "Version", duty: "Funkbelegung (letzte Stunde)", dutyOf: "der erlaubten 1 %", telegramsSent: "gesendete Telegramme",
+  alone: "Nur {peer} darf senden",
+  capture: "Mitschnitt", captureIdle: "Kein Mitschnitt aktiv.", captureRunning: "Mitschnitt läuft",
+  frames_: "Rahmen", gateway: "Gateway", allGateways: "Alle Gateways", exclusive: "Nur dieses Programm darf senden",
+  nobody: "(alle dürfen senden)", start: "Mitschnitt starten", stop: "Mitschnitt beenden", files: "Mitschnitte",
+  noFiles: "Noch keine Mitschnitte.", download: "Herunterladen", del: "Löschen", confirmDelete: "Mitschnitt löschen?",
+  captureNote: "Schreibt alle Rahmen beider Richtungen nach /share/enocean_proxy. Für PCT14: PCT14 über einen virtuellen COM-Port per TCP mit diesem Gateway verbinden, hier als einziges sendendes Programm wählen. Stoppt bei 50 MB von selbst.",
+  tools: "Werkzeuge", test: "Gateway-Test", testNote: "Liest 20-mal die Base-ID: wie schnell und zuverlässig das Gateway antwortet. Sendet nichts über Funk.",
+  testResult: "{answered} von {sent} beantwortet · Ø {avg} ms · max. {max} ms", send: "Rahmen senden",
+  sendNote: "Ein vollständiger ESP2- oder ESP3-Rahmen in Hex (z. B. A5 5A 6B 05 …). Wird wirklich gesendet: Aktoren schalten!",
+  answer: "Antwort", noAnswer: "keine Antwort erwartet oder erhalten", error: "Fehler",
 } : {
   connected: "Connected", disconnected: "Disconnected", since: "since", lastError: "Last error",
   port: "Port", clients: "Programs", noClients: "No program connected", replayTag: "replay",
   fromGateway: "from gateway", toGateway: "to gateway", queue: "queue", dropped: "dropped",
-  replayed: "replayed", refused: "refused", slow: "disconnected (stalled)",
+  replayed: "replayed", refused: "refused", slow: "disconnected (stalled)", locked: "held back",
   replay: "Replay buffer", kept: "telegrams", oldest: "oldest", maxAge: "at most",
   allowed: "Allowed clients", everyone: "everyone in the Supervisor network / opened ports",
   frames: "Recent frames", pause: "Pause", resume: "Resume", all: "All", radio: "Radio",
   answers: "Answers", other: "Other", time: "Time", dir: "Direction", kind: "Kind", peer: "Program",
   data: "Frame", none: "No frames yet.", running: "running for", offline: "No connection to the app",
-  version: "Version",
+  version: "Version", duty: "Air time (last hour)", dutyOf: "of the allowed 1 %", telegramsSent: "telegrams sent",
+  alone: "Only {peer} may send",
+  capture: "Capture", captureIdle: "No capture running.", captureRunning: "Capture running",
+  frames_: "frames", gateway: "Gateway", allGateways: "All gateways", exclusive: "Only this program may send",
+  nobody: "(everyone may send)", start: "Start capture", stop: "Stop capture", files: "Captures",
+  noFiles: "No captures yet.", download: "Download", del: "Delete", confirmDelete: "Delete capture?",
+  captureNote: "Writes every frame in both directions to /share/enocean_proxy. For PCT14: connect PCT14 to this gateway through a virtual COM port over TCP and pick it here as the only sending program. Stops by itself at 50 MB.",
+  tools: "Tools", test: "Gateway test", testNote: "Reads the base ID 20 times: how fast and reliably the gateway answers. Sends nothing over the air.",
+  testResult: "{answered} of {sent} answered · avg {avg} ms · max {max} ms", send: "Send frame",
+  sendNote: "A complete ESP2 or ESP3 frame in hex (e.g. A5 5A 6B 05 …). It is really sent: actuators switch!",
+  answer: "Answer", noAnswer: "no answer expected or received", error: "Error",
 };
 document.documentElement.lang = DE ? "de" : "en";
-const state = { paused: false, kind: "", last: null };
-
+const state = { paused: false, kind: "", last: null, built: "" };
+const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fill = (text, values) => text.replace(/\{(\w+)\}/g, (_m, k) => values[k] ?? "–");
 const duration = (s) => {
   s = Math.max(0, Math.round(s));
   if (s < 60) return `${s} s`;
@@ -113,84 +148,168 @@ const duration = (s) => {
   if (s < 86400) return `${(s / 3600).toFixed(1)} h`;
   return `${(s / 86400).toFixed(1)} d`;
 };
+const size = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 const clock = (t) => {
   const d = new Date(t * 1000);
   return d.toLocaleTimeString(DE ? "de-DE" : "en-GB", { hour12: false }) + "." + String(d.getMilliseconds()).padStart(3, "0");
 };
 const metric = (value, label, warn) => `<div class="metric${warn ? " warn" : ""}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
+const kindLabel = () => ({ radio: T.radio, answer: T.answers, other: T.other });
 
-function gatewayCard(g, now) {
+async function api(path, body) {
+  const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+
+// structure: built once per set of gateways, so inputs keep their content ------------------
+function build(data) {
+  $("capture").innerHTML = `
+    <div class="top"><h2>${T.capture}</h2><span id="cap-state"></span></div>
+    <div class="note">${esc(T.captureNote)}</div>
+    <div class="row">
+      <select id="cap-gateway"><option value="">${esc(T.allGateways)}</option>${data.gateways.map((g) => `<option>${esc(g.name)}</option>`).join("")}</select>
+      <select id="cap-peer" title="${esc(T.exclusive)}"><option value="">${esc(T.nobody)}</option></select>
+      <button class="primary" id="cap-toggle"></button>
+    </div>
+    <div class="result" id="cap-result"></div>
+    <details><summary>${T.files}</summary><div class="files" id="cap-files"></div></details>`;
+  $("gateways").innerHTML = data.gateways.map((g, i) => `
+    <section class="card">
+      <div class="top"><h2>${esc(g.name)}</h2><span id="pill-${i}"></span><span id="lock-${i}"></span></div>
+      <div class="sub mono" id="sub-${i}"></div>
+      <div id="err-${i}"></div>
+      <div class="metrics" id="metrics-${i}"></div>
+      <div class="grid">
+        <div><h3>${T.clients}</h3><div id="clients-${i}"></div></div>
+        <div><h3>${T.replay}</h3><div id="replay-${i}"></div></div>
+        <div><h3>${T.duty}</h3><div id="duty-${i}"></div></div>
+        <div><h3>${T.allowed}</h3><div class="sub mono" id="allowed-${i}"></div></div>
+      </div>
+      <details><summary>${T.tools}</summary>
+        <div style="display:grid;gap:14px">
+          <div><div class="row"><button data-test="${i}">${T.test}</button><span class="result" id="test-${i}"></span></div>
+            <div class="note" style="margin-top:4px">${esc(T.testNote)}</div></div>
+          <div><div class="row"><input type="text" id="hex-${i}" placeholder="A5 5A …" autocomplete="off"><button class="danger" data-send="${i}">${T.send}</button></div>
+            <div class="note" style="margin-top:4px">${esc(T.sendNote)}</div><div class="result" id="send-${i}"></div></div>
+        </div>
+      </details>
+      <div class="frames-head"><h3 style="margin:0">${T.frames}</h3><span class="spacer"></span><span class="row" id="filters-${i}"></span></div>
+      <div class="frames" id="frames-${i}"></div>
+    </section>`).join("");
+  state.built = data.gateways.map((g) => g.name).join("|");
+}
+
+function renderCapture(data) {
+  const c = data.capture;
+  $("cap-state").innerHTML = c.active
+    ? `<span class="pill warn"><i></i>${T.captureRunning} · ${esc(c.file)} · ${c.frames} ${T.frames_} · ${duration(data.now - c.started)}</span>`
+    : `<span class="muted">${T.captureIdle}</span>`;
+  const toggle = $("cap-toggle");
+  toggle.textContent = c.active ? T.stop : T.start;
+  toggle.classList.toggle("primary", !c.active);
+  $("cap-gateway").disabled = $("cap-peer").disabled = c.active;
+  const gw = data.gateways.find((g) => g.name === $("cap-gateway").value);
+  const peers = gw ? [...new Set(gw.clients.map((cl) => cl.peer))] : [];
+  const select = $("cap-peer");
+  const chosen = select.value;
+  select.innerHTML = `<option value="">${esc(T.nobody)}</option>` + peers.map((p) => `<option${p === chosen ? " selected" : ""}>${esc(p)}</option>`).join("");
+  select.style.display = gw ? "" : "none";
+  $("cap-files").innerHTML = c.files.length
+    ? `<ul>${c.files.map((f) => `<li><a href="api/captures/${encodeURIComponent(f.name)}" download>${esc(f.name)}</a><span class="muted">${size(f.size)}</span>${c.active && c.file === f.name ? "" : `<button class="danger" data-delete="${esc(f.name)}">${T.del}</button>`}</li>`).join("")}</ul>`
+    : `<div class="muted">${T.noFiles}</div>`;
+}
+
+function renderGateway(g, i, now) {
   const s = g.stats;
-  const pill = g.connected
+  $(`pill-${i}`).innerHTML = g.connected
     ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(now - g.connected_since)}` : ""}</span>`
     : `<span class="pill bad"><i></i>${T.disconnected}</span>`;
-  const sub = [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · ");
-  const clients = g.clients.length
+  $(`lock-${i}`).innerHTML = g.exclusive_peer ? `<span class="pill warn"><i></i>${esc(fill(T.alone, { peer: g.exclusive_peer }))}</span>` : "";
+  $(`sub-${i}`).textContent = [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · ");
+  $(`err-${i}`).innerHTML = g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : "";
+  $(`metrics-${i}`).innerHTML = metric(s.from_gateway, T.fromGateway) + metric(s.to_gateway, T.toGateway)
+    + metric(g.queue, T.queue, g.queue > 10) + metric(s.dropped, T.dropped, s.dropped > 0)
+    + metric(s.replayed, T.replayed) + metric(s.refused, T.refused, s.refused > 0)
+    + metric(s.slow_clients, T.slow, s.slow_clients > 0) + metric(s.locked, T.locked, s.locked > 0);
+  $(`clients-${i}`).innerHTML = g.clients.length
     ? `<ul>${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}</li>`).join("")}</ul>`
     : `<div class="muted">${T.noClients}</div>`;
   const r = g.replay;
-  const fill = r.size ? Math.min(100, (r.kept * 100) / r.size) : 0;
+  $(`replay-${i}`).innerHTML = `<div class="bar"><div style="width:${r.size ? Math.min(100, (r.kept * 100) / r.size) : 0}%"></div></div>
+    <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>`;
+  const d = g.duty_cycle;
+  const level = d.of_limit >= 80 ? "var(--bad)" : d.of_limit >= 50 ? "var(--warn)" : "var(--accent)";
+  $(`duty-${i}`).innerHTML = `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${level}"></div></div>
+    <div class="sub" style="margin-top:6px">${d.of_limit} % ${T.dutyOf} · ${d.telegrams} ${T.telegramsSent} · ${(d.ms / 1000).toFixed(1)} s</div>`;
+  $(`allowed-${i}`).textContent = g.allowed_clients.length ? g.allowed_clients.join(", ") : T.everyone;
+  const labels = kindLabel();
+  $(`filters-${i}`).innerHTML = ["", "radio", "answer", "other"].map((k) => `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? labels[k] : T.all)}</button>`).join("")
+    + `<button data-pause aria-pressed="${state.paused}">${state.paused ? T.resume : T.pause}</button>`;
   const frames = g.recent.filter((f) => !state.kind || f.kind === state.kind).slice().reverse();
-  const kindLabel = { radio: T.radio, answer: T.answers, other: T.other };
-  const rows = frames.length
+  $(`frames-${i}`).innerHTML = frames.length
     ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr>
-        <td class="mono">${clock(f.time)}</td>
-        <td class="${f.dir}">${f.dir === "rx" ? "↓" : "↑"}</td>
-        <td>${esc(kindLabel[f.kind] || f.kind)}</td>
-        <td class="mono">${esc(f.peer || "")}</td>
-        <td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
+        <td class="mono">${clock(f.time)}</td><td class="${f.dir}">${f.dir === "rx" ? "↓" : "↑"}</td>
+        <td>${esc(labels[f.kind] || f.kind)}</td><td class="mono">${esc(f.peer || "")}</td><td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${T.none}</div>`;
-  return `<section class="card">
-    <div class="top"><h2>${esc(g.name)}</h2>${pill}</div>
-    <div class="sub mono">${esc(sub)}</div>
-    ${g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : ""}
-    <div class="metrics">
-      ${metric(s.from_gateway, T.fromGateway)}${metric(s.to_gateway, T.toGateway)}
-      ${metric(g.queue, T.queue, g.queue > 10)}${metric(s.dropped, T.dropped, s.dropped > 0)}
-      ${metric(s.replayed, T.replayed)}${metric(s.refused, T.refused, s.refused > 0)}
-      ${metric(s.slow_clients, T.slow, s.slow_clients > 0)}
-    </div>
-    <div class="grid">
-      <div><h3>${T.clients} (${g.clients.length})</h3>${clients}</div>
-      <div><h3>${T.replay}</h3>
-        <div class="bar"><div style="width:${fill}%"></div></div>
-        <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>
-      </div>
-      <div><h3>${T.allowed}</h3><div class="sub mono">${g.allowed_clients.length ? esc(g.allowed_clients.join(", ")) : esc(T.everyone)}</div></div>
-    </div>
-    <div class="frames-head"><h3 style="margin:0">${T.frames}</h3><span class="spacer"></span>
-      ${["", "radio", "answer", "other"].map((k) => `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? kindLabel[k] : T.all)}</button>`).join("")}
-      <button data-pause aria-pressed="${state.paused}">${state.paused ? T.resume : T.pause}</button>
-    </div>
-    <div class="frames">${rows}</div>
-  </section>`;
 }
 
 function render() {
   const data = state.last;
   if (!data) return;
-  document.getElementById("meta").textContent =
-    `${T.version} ${data.version || "?"} · ${T.running} ${duration(data.now - data.started)}`;
-  document.getElementById("gateways").innerHTML =
-    `<div style="display:grid;gap:16px">${data.gateways.map((g) => gatewayCard(g, data.now)).join("")}</div>`;
+  if (state.built !== data.gateways.map((g) => g.name).join("|")) build(data);
+  $("meta").textContent = `${T.version} ${data.version || "?"} · ${T.running} ${duration(data.now - data.started)}`;
+  renderCapture(data);
+  data.gateways.forEach((g, i) => renderGateway(g, i, data.now));
 }
 
 async function refresh() {
-  if (state.paused) return;
+  if (state.paused && state.last) return;
   try {
-    const response = await fetch("api/status", { cache: "no-store" });
-    state.last = await response.json();
+    state.last = await api("api/status");
     render();
   } catch (err) {
-    document.getElementById("meta").innerHTML = `<span class="error">${T.offline}</span>`;
+    $("meta").innerHTML = `<span class="error">${T.offline}</span>`;
   }
 }
 
-document.addEventListener("click", (e) => {
-  const kind = e.target.closest("[data-kind]");
-  if (kind) { state.kind = kind.dataset.kind; render(); return; }
-  if (e.target.closest("[data-pause]")) { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
+document.addEventListener("click", async (e) => {
+  const target = e.target.closest("button");
+  if (!target) return;
+  const data = state.last;
+  try {
+    if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; render(); }
+    else if (target.hasAttribute("data-pause")) { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
+    else if (target.id === "cap-toggle") {
+      if (data.capture.active) await api("api/capture/stop", {});
+      else await api("api/capture/start", { gateway: $("cap-gateway").value || null, exclusive_peer: $("cap-peer").value || null });
+      $("cap-result").textContent = "";
+      state.paused = false; await refresh();
+    } else if (target.dataset.delete) {
+      if (confirm(T.confirmDelete)) { await api(`api/captures/${encodeURIComponent(target.dataset.delete)}/delete`, {}); await refresh(); }
+    } else if (target.dataset.test !== undefined) {
+      const i = Number(target.dataset.test);
+      target.disabled = true;
+      $(`test-${i}`).textContent = "…";
+      const r = await api("api/test", { gateway: data.gateways[i].name, count: 20 });
+      $(`test-${i}`).textContent = fill(T.testResult, { answered: r.answered, sent: r.sent, avg: r.avg_ms, max: r.max_ms });
+      target.disabled = false;
+    } else if (target.dataset.send !== undefined) {
+      const i = Number(target.dataset.send);
+      const r = await api("api/send", { gateway: data.gateways[i].name, hex: $(`hex-${i}`).value.replace(/[^0-9a-fA-F]/g, "") });
+      $(`send-${i}`).textContent = `${T.answer}: ${r.answer || T.noAnswer}`;
+    }
+  } catch (err) {
+    const where = target.dataset.test ?? target.dataset.send;
+    const out = target.id === "cap-toggle" || target.dataset.delete ? $("cap-result") : where !== undefined ? $(target.dataset.test !== undefined ? `test-${where}` : `send-${where}`) : null;
+    if (out) out.innerHTML = `<span class="error">${T.error}: ${esc(err.message)}</span>`;
+    target.disabled = false;
+  }
 });
+document.addEventListener("change", (e) => { if (e.target.id === "cap-gateway") render(); });
 refresh();
 setInterval(refresh, 2000);
 </script>

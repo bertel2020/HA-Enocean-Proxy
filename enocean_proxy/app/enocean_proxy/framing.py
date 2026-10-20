@@ -113,3 +113,38 @@ def expects_response(protocol: str, frame: bytes) -> bool:
         return True
     hseq, org = _esp2(frame)
     return hseq == ESP2_TCT and org < ESP2_BUS_CONTROL
+
+
+# Air time (868 MHz duty cycle) ------------------------------------------------------------
+
+BIT_RATE = 125_000  # bit/s of EnOcean radio
+SUBTELEGRAMS = 3  # gateways send every telegram three times
+RADIO_OVERHEAD = 6  # bytes around the payload on air: preamble, sync, length, CRC (approx.)
+ESP2_DATA_BYTES = {0x05: 1, 0x06: 1, 0x07: 4, 0xD2: 4}  # RPS, 1BS, 4BS, VLD (max)
+
+
+def airtime_ms(protocol: str, frame: bytes) -> float:
+    """Approximate time on air of a radio telegram the gateway sends (0 for other frames).
+
+    Payload = RORG + data + sender ID + status, coded 8 to 12 bits per byte on air, sent as
+    three subtelegrams. Accurate enough to watch the 1 % duty cycle, not to bill it.
+    """
+    if protocol == "esp3":
+        if frame[4] != 0x01:  # RADIO_ERP1 only
+            return 0.0
+        payload = int.from_bytes(frame[1:3], "big")
+    else:
+        if (frame[2] >> 5) != ESP2_TRT or frame[3] not in ESP2_DATA_BYTES:
+            return 0.0
+        payload = 1 + ESP2_DATA_BYTES[frame[3]] + 4 + 1
+    bits = (payload + RADIO_OVERHEAD) * 12
+    return SUBTELEGRAMS * bits * 1000 / BIT_RATE
+
+
+def base_id_request(protocol: str) -> bytes:
+    """A harmless command every gateway answers: read the base ID (used by the gateway test)."""
+    if protocol == "esp3":
+        header = bytes([0x00, 0x01, 0x00, 0x05])  # 1 data byte, COMMON_COMMAND
+        return b"\x55" + header + bytes([crc8(header), 0x08, crc8(b"\x08")])
+    body = bytes([0xAB, 0x58]) + bytes(9)  # TCT, RD_IDBASE, 4 data, 4 ID, status
+    return b"\xa5\x5a" + body + bytes([sum(body) & 0xFF])

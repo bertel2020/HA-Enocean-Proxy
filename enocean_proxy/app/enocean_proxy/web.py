@@ -1,8 +1,9 @@
-"""Status page behind Home Assistant's ingress: one HTML page and a JSON endpoint.
+"""Status page behind Home Assistant's ingress: one HTML page and a small JSON API.
 
 A minimal HTTP/1.1 server on asyncio (no extra dependency). Only the Supervisor's ingress
-proxy (172.30.32.2) may connect; the page itself fetches "api/status" relative to the
-ingress path every few seconds.
+proxy (172.30.32.2) may connect; the page fetches "api/status" relative to the ingress path
+every few seconds. API: GET status, GET captures/<file> (download), POST capture/start,
+capture/stop, captures/<file>/delete, send (one raw frame), test (gateway round trips).
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from collections.abc import Iterable
 from importlib import resources
 from typing import Any
 
+from .capture import CaptureError, CaptureManager
 from .proxy import GatewayProxy
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,6 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 INGRESS_PORT = 8099
 INGRESS_PEERS = ("172.30.32.2",)  # the Supervisor's ingress proxy
 MAX_REQUEST = 8192
+MAX_BODY = 65536
 
 
 def page() -> bytes:
@@ -37,12 +40,14 @@ class StatusServer:
         host: str = "0.0.0.0",  # noqa: S104 - reachable for the ingress proxy only (checked)
         port: int = INGRESS_PORT,
         peers: Iterable[str] | None = INGRESS_PEERS,
+        captures: CaptureManager | None = None,
     ) -> None:
         self.proxies = proxies
         self.version = version
         self.host = host
         self.port = port
         self.peers = None if peers is None else set(peers)
+        self.captures = captures or CaptureManager(proxies)
         self.started = time.time()
         self._server: asyncio.Server | None = None
 
@@ -52,6 +57,7 @@ class StatusServer:
             self.port = self._server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
+        self.captures.stop()
         if self._server is not None:
             self._server.close()
             await self._server.wait_closed()
@@ -62,7 +68,60 @@ class StatusServer:
             "started": self.started,
             "now": time.time(),
             "gateways": [proxy.status() for proxy in self.proxies],
+            "capture": self.captures.status(),
         }
+
+    def _proxy(self, name: Any) -> GatewayProxy:
+        for proxy in self.proxies:
+            if proxy.name == name:
+                return proxy
+        raise ApiError(f"unknown gateway {name!r}")
+
+    async def _route(self, method: str, path: str, body: bytes) -> Response:
+        path = path.strip("/")
+        if path in ("", "index.html"):
+            return 200, "text/html; charset=utf-8", page(), {}
+        if not path.startswith("api/"):
+            return 404, "text/plain", b"not found", {}
+        route = path.removeprefix("api/")
+        if method == "GET" and route == "status":
+            return _json(self.status())
+        if method == "GET" and route.startswith("captures/"):
+            name = route.removeprefix("captures/")
+            file = self.captures.path(name)
+            data = await asyncio.to_thread(file.read_bytes)
+            disposition = {"Content-Disposition": f'attachment; filename="{name}"'}
+            return 200, "application/x-ndjson", data, disposition
+        if method != "POST":
+            return 405, "text/plain", b"method not allowed", {}
+        try:
+            request = json.loads(body or b"{}")
+        except ValueError as err:
+            raise ApiError("invalid JSON") from err
+        if route == "capture/start":
+            name = self.captures.start(request.get("gateway"), request.get("exclusive_peer"))
+            return _json({"file": name})
+        if route == "capture/stop":
+            return _json({"file": self.captures.stop()})
+        if route.startswith("captures/") and route.endswith("/delete"):
+            self.captures.delete(route.removeprefix("captures/").removesuffix("/delete"))
+            return _json({"deleted": True})
+        if route == "send":
+            proxy = self._proxy(request.get("gateway"))
+            try:
+                frame = bytes.fromhex(str(request.get("hex", "")))
+                answer = await proxy.request(frame)
+            except (ValueError, ConnectionError) as err:
+                raise ApiError(str(err)) from err
+            return _json({"sent": True, "answer": answer.hex(" ") if answer else None})
+        if route == "test":
+            proxy = self._proxy(request.get("gateway"))
+            count = max(1, min(100, int(request.get("count", 20))))
+            try:
+                return _json(await proxy.gateway_test(count))
+            except ConnectionError as err:
+                raise ApiError(str(err)) from err
+        return 404, "text/plain", b"not found", {}
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         peer = (writer.get_extra_info("peername") or ("?",))[0]
@@ -75,19 +134,26 @@ class StatusServer:
                 return
             if len(head) > MAX_REQUEST:
                 return
-            method, _, rest = head.decode("latin-1").partition(" ")
+            lines = head.decode("latin-1").split("\r\n")
+            method, _, rest = lines[0].partition(" ")
             path = rest.partition(" ")[0].partition("?")[0]
-            if method not in ("GET", "HEAD"):
-                self._respond(writer, 405, "text/plain", b"method not allowed")
-            elif path.endswith("/api/status") or path == "api/status":
-                body = json.dumps(self.status()).encode()
-                self._respond(writer, 200, "application/json", body, head_only=method == "HEAD")
-            elif path in ("", "/") or path.endswith("/index.html"):
-                self._respond(writer, 200, "text/html; charset=utf-8", page(), method == "HEAD")
-            else:
-                self._respond(writer, 404, "text/plain", b"not found")
+            headers = {
+                k.strip().lower(): v.strip() for k, _, v in (h.partition(":") for h in lines[1:])
+            }
+            length = min(int(headers.get("content-length", "0") or 0), MAX_BODY)
+            body = await asyncio.wait_for(reader.readexactly(length), 10) if length else b""
+            try:
+                status, content_type, data, extra = await self._route(method, path, body)
+            except (ApiError, CaptureError) as err:
+                status, content_type, data, extra = (
+                    400,
+                    "application/json",
+                    json.dumps({"error": str(err)}).encode(),
+                    {},
+                )
+            self._respond(writer, status, content_type, data, extra, head_only=method == "HEAD")
             await writer.drain()
-        except OSError:
+        except (OSError, ValueError, asyncio.IncompleteReadError, TimeoutError):
             pass
         finally:
             writer.close()
@@ -98,14 +164,26 @@ class StatusServer:
         status: int,
         content_type: str,
         body: bytes,
+        extra: dict[str, str],
         head_only: bool = False,
     ) -> None:
-        reason = {200: "OK", 404: "Not Found", 405: "Method Not Allowed"}[status]
+        reasons = {200: "OK", 400: "Bad Request", 404: "Not Found", 405: "Method Not Allowed"}
         headers = (
-            f"HTTP/1.1 {status} {reason}\r\n"
+            f"HTTP/1.1 {status} {reasons[status]}\r\n"
             f"Content-Type: {content_type}\r\n"
             f"Content-Length: {len(body)}\r\n"
-            "Cache-Control: no-store\r\n"
-            "Connection: close\r\n\r\n"
+            + "".join(f"{key}: {value}\r\n" for key, value in extra.items())
+            + "Cache-Control: no-store\r\nConnection: close\r\n\r\n"
         )
         writer.write(headers.encode() + (b"" if head_only else body))
+
+
+class ApiError(ValueError):
+    """A request the API rejects; answered with 400 and the message."""
+
+
+Response = tuple[int, str, bytes, dict[str, str]]
+
+
+def _json(data: Any) -> Response:
+    return 200, "application/json", json.dumps(data).encode(), {}

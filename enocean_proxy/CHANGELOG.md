@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Capture: every frame in both directions to `/share/enocean_proxy`, download and delete on
+  the status page; optionally only one program may send meanwhile (PCT14 with a FAM14).
+- Replay with reception times ("EOPX REPLAY TS"), used by the EnOcean Eltako integration.
+- Air time of sent telegrams against the 1 % duty cycle, warning at 80 %.
+- Tools on the status page: gateway test (base ID round trips) and sending one raw frame.
+
 ## 0.3.0
 
 - Status page in Home Assistant's sidebar (ingress): per gateway the connection, the

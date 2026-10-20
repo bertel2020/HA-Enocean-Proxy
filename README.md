@@ -30,7 +30,10 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
   that arrived while no such program was connected, in order (up to `replay_size`, none
   older than `replay_max_age_s`).
 - A status page in the sidebar (ingress) shows connections, programs, counters, the
-  replay buffer and the last frames live.
+  replay buffer, the air time against the 1 % duty cycle and the last frames live; it
+  records captures (e.g. PCT14 with a FAM14, optionally with the gateway reserved for one
+  program), tests the gateway and sends single frames.
+- Replay can carry each telegram's reception time (`EOPX REPLAY TS`).
 - Home Assistant finds the gateways itself (Supervisor discovery). The ports stay inside the
   Supervisor network unless you open them; `allowed_clients` limits who may connect.
 

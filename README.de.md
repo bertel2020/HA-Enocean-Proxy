@@ -32,7 +32,10 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
   Funktelegramme, die ankamen, während kein solches Programm verbunden war, in ihrer Reihenfolge
   (bis `replay_size`, keine älter als `replay_max_age_s`).
 - Eine Statusseite in der Seitenleiste (Ingress) zeigt Verbindungen, Programme, Zähler,
-  den Nachlieferungs-Puffer und die letzten Rahmen live.
+  den Nachlieferungs-Puffer, die Funkbelegung gegenüber dem 1-%-Limit und die letzten Rahmen
+  live; sie nimmt Mitschnitte auf (z. B. PCT14 mit FAM14, auf Wunsch mit dem Gateway nur für
+  ein Programm), testet das Gateway und sendet einzelne Rahmen.
+- Die Nachlieferung kann die Empfangszeit jedes Telegramms mitschicken (`EOPX REPLAY TS`).
 - Home Assistant findet die Gateways selbst (Supervisor-Discovery). Die Ports bleiben im
   Supervisor-Netz, solange sie nicht freigegeben sind; `allowed_clients` begrenzt, wer sich
   verbinden darf.

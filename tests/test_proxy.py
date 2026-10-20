@@ -290,3 +290,112 @@ async def test_status_page(setup) -> None:
     assert await _get(only_ingress.port, "/api/status") == ("", b"")
     await only_ingress.close()
     writer.close()
+
+
+async def test_replay_with_reception_times(setup) -> None:
+    from enocean_proxy.proxy import REPLAY_REQUEST_TS
+
+    gateway, proxy = setup
+    gateway.send(FRAME_A)
+    await _until(lambda: proxy.stats.from_gateway == 1)
+    reader, writer = await asyncio.open_connection("127.0.0.1", proxy.port)
+    writer.write(REPLAY_REQUEST_TS[:6])  # the request may come in pieces
+    await asyncio.sleep(0.05)
+    writer.write(REPLAY_REQUEST_TS[6:])
+    assert await reader.readline() == b"EOPX TS 1\n"
+    stamp, frame = (await reader.readline()).decode().split()
+    assert bytes.fromhex(frame) == FRAME_A and abs(float(stamp) - __import__("time").time()) < 5
+    assert await reader.readline() == b"EOPX END\n"
+    gateway.send(FRAME_B)  # then the live binary stream
+    assert await reader.readexactly(14) == FRAME_B
+    writer.close()
+
+
+async def test_capture_lock_send_and_gateway_test(setup, tmp_path: Path) -> None:
+    from enocean_proxy.capture import CaptureManager
+    from enocean_proxy.web import StatusServer
+
+    gateway, proxy = setup
+    server = StatusServer(
+        [proxy],
+        host="127.0.0.1",
+        port=0,
+        peers=None,
+        captures=CaptureManager([proxy], tmp_path),
+    )
+    await server.start()
+    pct14_reader, pct14 = await _connect(proxy)
+    _r, home_assistant = await _connect(proxy)
+    await _until(lambda: proxy.clients == 2)
+
+    async def post(path: str, body: dict) -> tuple[str, dict]:
+        reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+        data = json.dumps(body).encode()
+        writer.write(f"POST {path} HTTP/1.1\r\nContent-Length: {len(data)}\r\n\r\n".encode() + data)
+        head, _, payload = (await reader.read()).partition(b"\r\n\r\n")
+        writer.close()
+        return head.decode().split("\r\n")[0], json.loads(payload)
+
+    line, started = await post("/api/capture/start", {"gateway": "test", "exclusive_peer": "x"})
+    assert line == "HTTP/1.1 200 OK"
+    assert proxy.exclusive_peer == "x"
+    pct14.write(COMMAND)  # not program "x": held back
+    await _until(lambda: proxy.stats.locked == 1)
+    await post("/api/capture/stop", {})
+    assert proxy.exclusive_peer is None
+
+    line, started = await post("/api/capture/start", {"gateway": "test"})
+    gateway.send(FRAME_A)
+    home_assistant.write(FRAME_B)
+    await _until(lambda: bytes(gateway.received).endswith(FRAME_B))
+    await asyncio.sleep(0.05)
+    line, stopped = await post("/api/capture/stop", {})
+    assert stopped["file"] == started["file"]
+    lines = (tmp_path / started["file"]).read_text().splitlines()
+    assert [(json.loads(x)["dir"], json.loads(x)["hex"]) for x in lines] == [
+        ("rx", FRAME_A.hex()),
+        ("tx", FRAME_B.hex()),
+    ]
+    status_line, body = await _get(server.port, f"/api/captures/{started['file']}")
+    assert status_line == "HTTP/1.1 200 OK" and body.count(b"\n") == 2
+    assert (await _get(server.port, "/api/captures/../../etc/passwd"))[0].endswith(
+        "400 Bad Request"
+    )
+    line, _ = await post(f"/api/captures/{started['file']}/delete", {})
+    assert not (tmp_path / started["file"]).exists()
+
+    # gateway test: the fake gateway answers every base ID request
+    async def answer_base_id() -> None:
+        while True:
+            await asyncio.sleep(0.01)
+            while BASE_ID_READ in gateway.received:
+                index = gateway.received.index(BASE_ID_READ)
+                del gateway.received[index : index + 14]
+                gateway.send(BASE_ID_ANSWER)
+
+    task = asyncio.create_task(answer_base_id())
+    line, result = await post("/api/test", {"gateway": "test", "count": 3})
+    assert (result["sent"], result["answered"], result["lost"]) == (3, 3, 0)
+    line, sent = await post("/api/send", {"gateway": "test", "hex": BASE_ID_READ.hex()})
+    assert sent["answer"] == BASE_ID_ANSWER.hex(" ")
+    line, error = await post("/api/send", {"gateway": "test", "hex": "A55A00"})
+    assert line.endswith("400 Bad Request") and "frame" in error["error"]
+    task.cancel()
+    assert pct14_reader is not None
+    pct14.close()
+    home_assistant.close()
+    await server.close()
+
+
+async def test_duty_cycle_counts_sent_radio_telegrams(setup) -> None:
+    _gateway, proxy = setup
+    _reader, writer = await _connect(proxy)
+    await _until(lambda: proxy.clients == 1)
+    for _ in range(3):
+        writer.write(COMMAND)  # TRT 1BS... radio telegrams over the air
+    writer.write(BASE_ID_READ)  # a gateway command: no air time
+    await _until(lambda: proxy.stats.to_gateway == 4)
+    duty = proxy.duty_cycle()
+    assert duty["telegrams"] == 3
+    assert 0 < duty["ms"] < 20 and duty["of_limit"] < 1
+    writer.close()
