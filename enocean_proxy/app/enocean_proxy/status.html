@@ -106,6 +106,9 @@
     .frames td.peer { text-align: right; }
     .frames td.hex { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; margin-top: 2px; }
   }
+  .live.stale { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .live.stale i { animation: none; }
+  body.stale #capture, body.stale #gateways { opacity: .55; }
   details > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase;
     letter-spacing: .04em; font-weight: 500; }
   details[open] > summary { margin-bottom: 10px; }
@@ -146,7 +149,7 @@ const T = DE ? {
   testResult: "{answered} von {sent} beantwortet · Ø {avg} ms · max. {max} ms", send: "Rahmen senden",
   sendNote: "Ein vollständiger ESP2- oder ESP3-Rahmen in Hex (z. B. A5 5A 6B 05 …). Wird wirklich gesendet: Aktoren schalten!",
   answer: "Antwort", noAnswer: "keine Antwort erwartet oder erhalten", error: "Fehler",
-  connecting: "Verbindet …", issues: "Auffälligkeiten", noIssues: "keine", live: "Live", pausedLabel: "Pausiert",
+  connecting: "Verbindet …", staleLabel: "Keine Verbindung", staleSince: "Stand von {time}", issues: "Auffälligkeiten", noIssues: "keine", live: "Live", pausedLabel: "Pausiert",
   ofLimit: "von 1 %", telegramsShort: "Telegramme", unrestricted: "keine Einschränkung (nur Supervisor-Netz, solange keine Ports freigegeben sind)",
   confirmSend: "Diesen Rahmen wirklich an das Gateway senden? Aktoren können schalten.", hexLabel: "Rahmen in Hex",
   gatewayLabel: "Gateway für den Mitschnitt", peerLabel: "Programm, das allein senden darf", show: "Anzeigen",
@@ -171,13 +174,14 @@ const T = DE ? {
   testResult: "{answered} of {sent} answered · avg {avg} ms · max {max} ms", send: "Send frame",
   sendNote: "A complete ESP2 or ESP3 frame in hex (e.g. A5 5A 6B 05 …). It is really sent: actuators switch!",
   answer: "Answer", noAnswer: "no answer expected or received", error: "Error",
-  connecting: "Connecting …", issues: "Issues", noIssues: "none", live: "Live", pausedLabel: "Paused",
+  connecting: "Connecting …", staleLabel: "No connection", staleSince: "as of {time}", issues: "Issues", noIssues: "none", live: "Live", pausedLabel: "Paused",
   ofLimit: "of 1 %", telegramsShort: "telegrams", unrestricted: "no restriction (Supervisor network only while no ports are opened)",
   confirmSend: "Really send this frame to the gateway? Actuators may switch.", hexLabel: "Frame in hex",
   gatewayLabel: "Gateway to capture", peerLabel: "Program that may send alone", show: "Show",
 };
 document.documentElement.lang = DE ? "de" : "en";
-const state = { paused: false, kind: "", last: null, built: "" };
+// seq/shown: answers that arrive late never replace a newer one; stale: the app did not answer
+const state = { paused: false, kind: "", last: null, built: "", seq: 0, shown: 0, loading: false, stale: false };
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fill = (text, values) => text.replace(/\{(\w+)\}/g, (_m, k) => values[k] ?? "–");
@@ -303,8 +307,10 @@ function renderGateway(g, i, now) {
 
 function renderToolbar() {
   const live = $("live");
-  live.classList.toggle("paused", state.paused);
-  live.querySelector("span").textContent = state.paused ? T.pausedLabel : T.live;
+  live.classList.toggle("paused", state.paused && !state.stale);
+  live.classList.toggle("stale", state.stale);
+  live.querySelector("span").textContent = state.stale ? T.staleLabel : state.paused ? T.pausedLabel : T.live;
+  document.body.classList.toggle("stale", state.stale);
   $("pause").textContent = state.paused ? T.resume : T.pause;
   $("pause").setAttribute("aria-pressed", String(state.paused));
   const labels = kindLabel();
@@ -322,13 +328,28 @@ function render() {
   data.gateways.forEach((g, i) => renderGateway(g, i, data.now));
 }
 
-async function refresh() {
-  if ((state.paused && state.last) || document.hidden) return;
+async function refresh(force = false) {
+  // the timer skips while an answer is outstanding; actions refresh at once (force)
+  if (!force && ((state.paused && state.last) || document.hidden || state.loading)) return;
+  const seq = ++state.seq;
+  state.loading = true;
   try {
-    state.last = await api("api/status");
+    const data = await api("api/status");
+    if (seq < state.shown) return;
+    state.shown = seq;
+    state.last = data;
+    state.stale = false;
     render();
   } catch (err) {
-    $("meta").innerHTML = `<span class="error">${T.offline}</span>`;
+    if (seq < state.shown) return;
+    state.shown = seq;
+    state.stale = true;
+    renderToolbar();
+    // what is still shown is the last known state: say so, and from when
+    const since = state.last ? ` · ${fill(T.staleSince, { time: new Date(state.last.now * 1000).toLocaleTimeString(DE ? "de-DE" : "en-GB", { hour12: false }) })}` : "";
+    $("meta").innerHTML = `<span class="error">${T.offline}</span>${esc(since)}`;
+  } finally {
+    if (seq === state.seq) state.loading = false;
   }
 }
 
@@ -338,14 +359,14 @@ document.addEventListener("click", async (e) => {
   const data = state.last;
   try {
     if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; render(); }
-    else if (target.id === "pause") { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
+    else if (target.id === "pause") { state.paused = !state.paused; render(); if (!state.paused) refresh(true); }
     else if (target.id === "cap-toggle") {
       if (data.capture.active) await api("api/capture/stop", {});
       else await api("api/capture/start", { gateway: $("cap-gateway").value || null, exclusive_peer: $("cap-peer").value || null });
       $("cap-result").textContent = "";
-      state.paused = false; await refresh();
+      state.paused = false; await refresh(true);
     } else if (target.dataset.delete) {
-      if (confirm(T.confirmDelete)) { await api(`api/captures/${encodeURIComponent(target.dataset.delete)}/delete`, {}); await refresh(); }
+      if (confirm(T.confirmDelete)) { await api(`api/captures/${encodeURIComponent(target.dataset.delete)}/delete`, {}); await refresh(true); }
     } else if (target.dataset.test !== undefined) {
       const i = Number(target.dataset.test);
       target.disabled = true;
@@ -367,7 +388,7 @@ document.addEventListener("click", async (e) => {
   }
 });
 document.addEventListener("change", (e) => { if (e.target.id === "cap-gateway") render(); });
-document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(true); });
 renderToolbar();
 refresh();
 setInterval(refresh, 2000);
