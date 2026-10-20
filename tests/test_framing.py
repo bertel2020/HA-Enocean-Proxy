@@ -49,3 +49,13 @@ def test_frame_kinds() -> None:
     assert is_radio("esp2", ESP2) and is_radio("esp2", bus_actor)
     assert not is_radio("esp2", poll) and not expects_response("esp2", poll)
     assert not is_response("esp2", bus_actor)
+
+
+def test_radio_info() -> None:
+    from enocean_proxy.framing import radio_info
+
+    assert radio_info("esp2", ESP2) == ("RPS", "00-21-63-43")
+    assert radio_info("esp3", esp3(bytes.fromhex("F6500021634330"))) == ("RPS", "00-21-63-43")
+    assert radio_info("esp3", esp3(bytes.fromhex("A50000000AFF8000013F"))) == ("4BS", "FF-80-00-01")
+    assert radio_info("esp3", esp3(b"\x00", packet_type=2)) is None
+    assert radio_info("esp2", bytes.fromhex("A55AABFC00000000000000010000")) is None

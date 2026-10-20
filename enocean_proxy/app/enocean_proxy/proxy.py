@@ -39,6 +39,7 @@ from .framing import (
     expects_response,
     is_radio,
     is_response,
+    radio_info,
 )
 from .upstream import open_upstream
 
@@ -208,6 +209,7 @@ class GatewayProxy:
             if is_response(self.protocol, frame)
             else "other"
         )
+        info = radio_info(self.protocol, frame) if kind == "radio" else None
         self.recent.append(
             {
                 "time": time.time(),
@@ -215,6 +217,8 @@ class GatewayProxy:
                 "kind": kind,
                 "hex": frame.hex(" "),
                 "peer": peer,
+                "rorg": info[0] if info else None,
+                "sender": info[1] if info else None,
             }
         )
         for observer in list(self.observers):

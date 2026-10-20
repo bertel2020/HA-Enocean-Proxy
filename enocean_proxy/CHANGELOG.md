@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.0
+
+- Status page reorganised: one gateway at a time (switcher with a status dot when there
+  are several), and four tabs instead of one long page: **Overview**, **Telegrams**,
+  **Capture**, **Tools**. The last tab and gateway are remembered.
+- Overview says in plain words what is wrong and what to do (gateway unreachable, reserved
+  for a capture, dropped or held-back telegrams, refused or stalled programs, queue, air
+  time, no program connected) or that all is well; the tab shows how many issues there are.
+- Telegrams: sender ID and telegram type (RPS, 1BS, 4BS, VLD) of radio frames; search by
+  ID, program or hex; filter by direction; counts per kind; clicking an ID shows only that
+  sender. Pause freezes the list only (the rest stays live) and counts what arrived since.
+  Each frame can be copied or taken over into "Send frame".
+- Capture has its own tab with a clear running/idle state, a stop button, file dates and
+  the PCT14 steps; a running capture shows in the header on every tab.
+- Send frame checks the frame while typing (sync bytes, length, ESP2 checksum, ESP3 CRCs)
+  and offers to add or fix the checksum; the last answers stay listed. Test and send say
+  why they are unavailable (not connected, reserved).
+- API: radio frames in the status carry `rorg` and `sender`.
+
 ## 0.5.3
 
 - Status page: only what changed is drawn again. Selected text (to copy a frame) stays,

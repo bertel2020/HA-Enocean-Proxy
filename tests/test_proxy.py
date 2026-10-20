@@ -285,6 +285,7 @@ async def test_status_page(setup) -> None:
     recent = {f["dir"]: f for f in gw["recent"]}  # order of rx and tx is not fixed
     assert (recent["tx"]["kind"], recent["rx"]["kind"]) == ("radio", "radio")
     assert recent["tx"]["peer"] == "127.0.0.1" and recent["rx"]["peer"] is None
+    assert recent["rx"]["rorg"] and recent["rx"]["sender"]
     line, body = await _get(server.port, "/")
     assert line == "HTTP/1.1 200 OK" and b"EnOcean Proxy" in body
     assert (await _get(server.port, "/nothing"))[0] == "HTTP/1.1 404 Not Found"

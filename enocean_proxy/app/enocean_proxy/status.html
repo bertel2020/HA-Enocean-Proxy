@@ -7,181 +7,319 @@
 <style>
   :root {
     --bg: #f5f5f5; --surface: #fff; --text: #212121; --muted: #6f6f6f; --line: #e3e3e3;
-    --soft: #efefef; --accent: #03a9f4; --ok: #2e7d32; --bad: #c62828; --warn: #b26a00;
+    --soft: #efefef; --accent: #03a9f4; --ok: #2e7d32; --bad: #c62828; --warn: #b26a00; --on-strong: #fff;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #111; --surface: #1c1c1c; --text: #e6e6e6; --muted: #9a9a9a; --line: #2c2c2c;
-      --soft: #262626; --accent: #4fc3f7; --ok: #66bb6a; --bad: #ef5350; --warn: #ffb74d;
+      --soft: #262626; --accent: #4fc3f7; --ok: #66bb6a; --bad: #ef5350; --warn: #ffb74d; --on-strong: #111;
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 14px/1.45 Roboto, "Segoe UI", system-ui, sans-serif; }
-  main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
-  header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
   h1 { margin: 0; font-size: 22px; font-weight: 400; }
-  h2 { margin: 0; font-size: 17px; font-weight: 500; }
-  h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; text-transform: uppercase;
+  h2 { margin: 0; font-size: 18px; font-weight: 500; }
+  h3 { margin: 0; font-size: 12px; font-weight: 500; text-transform: uppercase;
     letter-spacing: .04em; color: var(--muted); }
+  p { margin: 0; }
   .muted { color: var(--muted); }
   .mono { font-family: var(--mono); }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px; display: grid; gap: 14px; min-width: 0; }
-  .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
-    border-radius: 999px; font-size: 12px; background: var(--soft); color: var(--muted); }
-  .pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-  .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
-  .pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
-  .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .metric { background: var(--soft); border-radius: 8px; padding: 8px 10px; }
-  .metric b { display: block; font-size: 20px; font-weight: 400; }
-  .metric span { font-size: 12px; color: var(--muted); }
-  .metric.warn b { color: var(--bad); }
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  li { display: flex; gap: 8px; align-items: center; }
-  .tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
-  .tag.accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-  .bar { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); }
-  .frames-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .frames-head .spacer { flex: 1; }
-  button, select { font: inherit; font-size: 13px; color: var(--text); background: var(--soft);
-    border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-  .frames { overflow: auto; max-height: 320px; border: 1px solid var(--line); border-radius: 8px; }
-  .frames th { position: sticky; top: 0; background: var(--surface); }
-  table { border-collapse: collapse; width: 100%; font-size: 12px; }
-  td, th { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; }
-  th { border-top: 0; color: var(--muted); font-weight: 500; }
-  td.hex { font-family: var(--mono); }
-  .rx { color: var(--muted); }
-  .tx { color: var(--accent); }
-  .empty { color: var(--muted); padding: 12px; text-align: center; }
-  .error { color: var(--bad); }
-  @media (max-width: 600px) {
-    main { padding: 10px; }
-    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-    .metric { padding: 6px 8px; }
-    .metric b { font-size: 16px; }
-    .metric span { font-size: 11px; }
-  }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  input[type=text] { font: inherit; font-size: 13px; color: var(--text); background: var(--surface);
-    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; flex: 1 1 260px; }
-  button.primary { background: var(--accent); color: #fff; border-color: transparent; }
-  button.danger { color: var(--bad); }
-  button:disabled { opacity: .5; cursor: default; }
-  .result { font-size: 13px; }
   .note { font-size: 12px; color: var(--muted); }
-  .pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
-  .files a { color: var(--accent); text-decoration: none; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 2;
-    background: var(--bg); padding: 8px 0; }
-  .toolbar .spacer { flex: 1; }
-  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 10px; border-radius: 999px;
-    color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
-  .live i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
-  .live.paused { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
-  .live.paused i { animation: none; }
+  .error { color: var(--bad); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .spacer { flex: 1; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+  .stack { display: grid; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+  /* header */
+  .app { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .app .meta { font-size: 13px; color: var(--muted); }
+
+  /* pills, dots, tags */
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; background: var(--soft); color: var(--muted); white-space: nowrap; border: 0; }
+  .pill i, .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; display: inline-block; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); } .info { color: var(--accent); }
+  .pill.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .pill.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .pill.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .pill.info { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .live i { animation: pulse 1.6s infinite; }
+  .live.bad i { animation: none; }
   @keyframes pulse { 50% { opacity: .3; } }
   @media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
-  .issues { font-size: 13px; }
-  .issues .ok { color: var(--ok); }
-  .issues .bad { color: var(--bad); }
-  .files li { flex-wrap: wrap; }
-  .files a { overflow-wrap: anywhere; }
-  .files .muted { white-space: nowrap; }
+  .tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+  .tag.accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .tag.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+
+  /* controls */
+  button, select, input { font: inherit; font-size: 13px; color: var(--text); }
+  button, select { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--on-strong); border-color: transparent; }
+  button.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  button.danger.solid { background: var(--bad); color: var(--on-strong); border-color: transparent; }
+  button.link { background: none; border: 0; padding: 0; color: var(--accent); border-radius: 4px; }
+  button.icon { padding: 2px 8px; font-size: 12px; }
+  button:disabled { opacity: .5; cursor: default; }
+  button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  input[type=text], input[type=search] { background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 10px; min-width: 0; }
+  label.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+  label.field select { max-width: 100%; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  @media (max-width: 600px) {
+  a { color: var(--accent); }
+
+  /* gateway switcher and tabs */
+  .switcher { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .gwchip { display: flex; align-items: center; gap: 8px; border-radius: 10px; padding: 8px 14px;
+    background: var(--surface); border: 1px solid var(--line); white-space: nowrap; text-align: left; }
+  .gwchip[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .gwchip small { color: var(--muted); font-size: 12px; }
+  .gwhead .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .gwhead .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; font-family: var(--mono); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .tabs button { border: 0; border-radius: 0; background: none; padding: 10px 14px; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .badge { font-size: 11px; min-width: 18px; padding: 0 6px; border-radius: 999px; text-align: center;
+    background: var(--soft); color: var(--muted); }
+  .badge.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .badge.bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+
+  /* overview */
+  .health { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .health li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid currentColor; }
+  .health li > div { color: var(--text); }
+  .health .dot { margin-top: 6px; }
+  .allgood { padding: 10px 12px; border-radius: 10px; color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent); }
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .metric b { display: block; font-size: 22px; font-weight: 400; }
+  .metric span { font-size: 12px; color: var(--muted); }
+  .metric.warn b { color: var(--warn); }
+  .bar { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); }
+  ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  ul.plain li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cardhead { display: flex; align-items: center; gap: 8px; }
+  .cardhead h3 { flex: 1; }
+
+  /* frames */
+  .mtools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .mtools input[type=search] { flex: 1 1 200px; }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+  .seg button small { color: var(--muted); margin-left: 4px; }
+  .frames { overflow: auto; max-height: 60vh; border: 1px solid var(--line); border-radius: 8px; }
+  .frames.short { max-height: none; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  td, th { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: middle; }
+  th { border-top: 0; color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  td.hex { font-family: var(--mono); white-space: normal; overflow-wrap: anywhere; min-width: 16ch; }
+  td.act { text-align: right; }
+  .rx { color: var(--muted); } .tx { color: var(--accent); }
+  .empty { color: var(--muted); padding: 16px; text-align: center; }
+
+  /* tools */
+  .check { font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 20px; }
+  .hexin { flex: 1 1 280px; font-family: var(--mono); }
+  .caution { font-size: 12px; padding: 8px 10px; border-radius: 8px; color: var(--text);
+    background: color-mix(in srgb, var(--bad) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 25%, transparent); }
+  .history { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; }
+  .history li { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .history .mono { overflow-wrap: anywhere; }
+  .result { font-size: 13px; }
+  .runbox { border-left: 4px solid var(--warn); }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .stats b { font-weight: 500; }
+  details.help > summary { cursor: pointer; font-weight: 500; }
+  details.help ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; }
+
+  body.stale #content { opacity: .55; }
+
+  @media (max-width: 640px) {
+    main { padding: 12px 16px; }
+    .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .tabs button { padding: 10px 9px; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .metric b { font-size: 18px; }
     .frames table, .frames tbody, .frames tr, .frames td { display: block; }
     .frames thead { display: none; }
-    .frames tr { display: grid; grid-template-columns: auto auto 1fr; gap: 0 10px; padding: 6px 10px;
-      border-top: 1px solid var(--line); }
-    .frames td { border: 0; padding: 0; }
-    .frames td.peer { text-align: right; }
-    .frames td.hex { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; margin-top: 2px; }
+    .frames tr { display: grid; grid-template-columns: auto auto 1fr auto; gap: 2px 8px; padding: 8px 10px;
+      border-top: 1px solid var(--line); align-items: center; }
+    .frames td { border: 0; padding: 0; white-space: nowrap; }
+    .frames td.hex { grid-column: 1 / -1; }
+    .frames td.peer:empty, .frames td.sender:empty { display: none; }
+    .frames td.act { grid-column: 4; grid-row: 1; }
   }
-  .live.stale { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
-  .live.stale i { animation: none; }
-  body.stale #capture, body.stale #gateways { opacity: .55; }
-  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase;
-    letter-spacing: .04em; font-weight: 500; }
-  details[open] > summary { margin-bottom: 10px; }
 </style>
 </head>
 <body>
 <main>
-  <header><h1>EnOcean Proxy</h1><span class="muted" id="meta"></span></header>
-  <div class="toolbar" role="toolbar">
-    <span class="live" id="live"><i></i><span></span></span>
-    <button id="pause"></button>
+  <header class="app">
+    <h1>EnOcean Proxy</h1>
+    <span class="meta" id="meta"></span>
     <span class="spacer"></span>
-    <span class="row" id="kinds" role="group"></span>
+    <span id="capflag"></span>
+    <span class="pill live" id="live" role="status"><i></i><span></span></span>
+  </header>
+  <div id="content" class="stack">
+    <nav class="switcher" id="gws" role="tablist" hidden></nav>
+    <section class="card gwhead" id="gwhead" hidden></section>
+    <nav class="tabs" id="tabs" role="tablist" hidden></nav>
+    <section id="panel" class="stack" role="tabpanel"></section>
   </div>
-  <section class="card" id="capture"></section>
-  <div id="gateways" style="display:grid;gap:16px"></div>
 </main>
 <script>
 const DE = (navigator.language || "en").toLowerCase().startsWith("de");
 const T = DE ? {
-  connected: "Verbunden", disconnected: "Getrennt", since: "seit", lastError: "Letzter Fehler",
-  port: "Port", clients: "Programme", noClients: "Kein Programm verbunden", replayTag: "Nachlieferung",
-  fromGateway: "vom Gateway", toGateway: "zum Gateway", queue: "Warteschlange", dropped: "verworfen",
-  replayed: "nachgeliefert", refused: "abgewiesen", slow: "getrennt (hängt)", locked: "gesperrt",
-  replay: "Puffer für Nachlieferung", kept: "Telegramme", oldest: "ältestes", maxAge: "höchstens",
-  allowed: "Erlaubte Clients", everyone: "alle im Supervisor-Netz / freigegebene Ports",
-  frames: "Letzte Rahmen", pause: "Anhalten", resume: "Fortsetzen", all: "Alle", radio: "Funk",
-  answers: "Antworten", other: "Sonstige", time: "Zeit", dir: "Richtung", kind: "Art", peer: "Programm",
-  data: "Rahmen", none: "Noch keine Rahmen.", running: "läuft seit", offline: "Keine Verbindung zur App",
-  version: "Version", duty: "Funkbelegung (letzte Stunde)", dutyOf: "der erlaubten 1 %", telegramsSent: "gesendete Telegramme",
-  alone: "Nur {peer} darf senden",
-  capture: "Mitschnitt", captureIdle: "Kein Mitschnitt aktiv.", captureRunning: "Mitschnitt läuft",
-  frames_: "Rahmen", gateway: "Gateway", allGateways: "Alle Gateways", exclusive: "Nur dieses Programm darf senden",
-  nobody: "(alle dürfen senden)", start: "Mitschnitt starten", stop: "Mitschnitt beenden", files: "Mitschnitte",
-  noFiles: "Noch keine Mitschnitte.", download: "Herunterladen", del: "Löschen", confirmDelete: "Mitschnitt löschen?",
-  captureNote: "Schreibt alle Rahmen beider Richtungen nach /share/enocean_proxy. Für PCT14: PCT14 über einen virtuellen COM-Port per TCP mit diesem Gateway verbinden, hier als einziges sendendes Programm wählen. Stoppt bei 50 MB von selbst.",
-  tools: "Werkzeuge", test: "Gateway-Test", testNote: "Liest 20-mal die Base-ID: wie schnell und zuverlässig das Gateway antwortet. Sendet nichts über Funk.",
-  testResult: "{answered} von {sent} beantwortet · Ø {avg} ms · max. {max} ms", send: "Rahmen senden",
-  sendNote: "Ein vollständiger ESP2- oder ESP3-Rahmen in Hex (z. B. A5 5A 6B 05 …). Wird wirklich gesendet: Aktoren schalten!",
+  version: "Version", running: "läuft seit", live: "Live", offline: "Keine Verbindung zur App", asOf: "Stand {time}",
+  loading: "Lädt …", noGateways: "Keine Gateways konfiguriert. Trage sie in der Konfiguration der App ein.",
+  connected: "Verbunden", disconnected: "Getrennt", connecting: "Verbindet …", since: "seit", port: "Port",
+  tabOverview: "Übersicht", tabMonitor: "Telegramme", tabCapture: "Mitschnitt", tabTools: "Werkzeuge",
+  captureRunning: "Mitschnitt läuft",
+  // overview
+  allGood: "Alles in Ordnung: Gateway verbunden, keine Auffälligkeiten seit dem Start.",
+  iDown: "Gateway nicht erreichbar", iDownText: "{error} – die App versucht es alle paar Sekunden erneut. Verbundene Programme bleiben verbunden.",
+  iConnecting: "Verbindung wird aufgebaut", iConnectingText: "Die App öffnet gerade die Verbindung zum Gateway.",
+  iLocked: "Für einen Mitschnitt reserviert", iLockedText: "Nur {peer} darf senden. Telegramme anderer Programme (auch Home Assistant) werden zurückgehalten, bis der Mitschnitt endet.",
+  iNoClients: "Kein Programm verbunden", iNoClientsText: "Noch nutzt kein Programm Port {port}. Funktelegramme werden bis dahin für die Nachlieferung aufbewahrt.",
+  iDropped: "{n} Telegramme verworfen", iDroppedText: "Programme haben gesendet, während das Gateway getrennt war (seit Start).",
+  iRefused: "{n} Verbindungen abgewiesen", iRefusedText: "Von Adressen, die nicht in allowed_clients stehen (seit Start).",
+  iSlow: "{n} Programme getrennt", iSlowText: "Sie haben keine Daten mehr abgenommen und hätten den Proxy aufgehalten (seit Start).",
+  iHeld: "{n} Telegramme zurückgehalten", iHeldText: "Während eines Mitschnitts durfte nur ein Programm senden (seit Start).",
+  iQueue: "{n} Telegramme in der Warteschlange", iQueueText: "Das Gateway kommt mit dem Senden nicht nach. Prüfe Gateway und send_gap_ms.",
+  iDuty: "Funkbelegung hoch: {pct} % des Erlaubten", iDutyText: "Ein Sender darf höchstens 1 % der Zeit funken. Prüfe Automationen, die sehr oft senden.",
+  received: "empfangen", sent: "gesendet", replayed: "nachgeliefert", queue: "Warteschlange",
+  fromGateway: "vom Gateway", toGateway: "zum Gateway",
+  clients: "Verbundene Programme", noClients: "Keines", replayTag: "Nachlieferung", aloneTag: "sendet allein",
+  clientsNote: "Programme mit „Nachlieferung“ bekommen nach einem Neustart die Telegramme, die sie verpasst haben.",
+  replay: "Nachlieferungspuffer", kept: "{kept} von {size} Telegrammen", oldest: "ältestes vor {age}", maxAge: "aufbewahrt höchstens {age}",
+  replayNote: "Sammelt Funktelegramme, solange kein Programm mit Nachlieferung verbunden ist.",
+  duty: "Funkbelegung (letzte Stunde)", dutyText: "{pct} % der erlaubten 1 % · {n} Telegramme gesendet",
+  dutyNote: "Ab 80 % schreibt die App eine Warnung ins Log.",
+  access: "Zugriff", unrestricted: "Keine Einschränkung", unrestrictedNote: "Nur Programme im Supervisor-Netz erreichen den Port, solange er unter „Netzwerk“ nicht freigegeben ist.",
+  allowedNote: "Nur diese Adressen dürfen sich verbinden (allowed_clients).",
+  newest: "Neueste Telegramme", showAll: "Alle anzeigen",
+  // monitor
+  pause: "Anhalten", resume: "Fortsetzen", resumeNew: "Fortsetzen ({n} neu)", all: "Alle", radio: "Funk", answers: "Antworten", other: "Sonstige",
+  allDirs: "Beide Richtungen", search: "Suchen: ID, Programm, Hex …", searchLabel: "Telegramme durchsuchen", dirLabel: "Richtung",
+  shown: "{n} von {total} Rahmen", total: "Die letzten {total} Rahmen", pausedAt: "angehalten um {time}",
+  program1: "1 Programm", programs: "{n} Programme", time: "Zeit", kind: "Art", sender: "Absender", peer: "Programm", data: "Rahmen", none: "Noch keine Rahmen.", noMatch: "Kein Rahmen passt zum Filter.",
+  copy: "Kopieren", copied: "Kopiert", toSend: "In „Rahmen senden“ übernehmen", filterId: "Nur diese ID anzeigen", clear: "Filter löschen",
+  // capture
+  capTitle: "Neuer Mitschnitt", capGateway: "Gateway", allGateways: "Alle Gateways", capPeer: "Senden erlauben",
+  everyone: "Allen Programmen", onlyPeer: "Nur {peer}",
+  capWhat: "Schreibt jeden Rahmen beider Richtungen mit Zeit, Art und Programm in eine Datei unter /share/enocean_proxy. Stoppt bei 50 MB von selbst.",
+  capPeerNote: "Mit „Nur …“ hört Home Assistant weiter mit, kann aber nicht senden – so stört nichts z. B. den Speicherzugriff von PCT14.",
+  capPeerAll: "Einzelnes sendendes Programm: erst ein Gateway wählen.",
+  capPeerNone: "Kein Programm verbunden – verbinde zuerst das Programm, das allein senden soll.",
+  start: "Mitschnitt starten", stop: "Mitschnitt beenden",
+  capFile: "Datei", capFrames: "Rahmen", capFor: "Dauer", capOn: "Gateway", capAlone: "Sendet allein",
+  files: "Gespeicherte Mitschnitte", noFiles: "Noch keine Mitschnitte.", download: "Herunterladen", del: "Löschen", confirmDelete: "Mitschnitt „{name}“ löschen?",
+  running_: "läuft",
+  pctHelp: "So zeichnest du PCT14 mit einem FAM14 auf",
+  pctSteps: [
+    "FAM14 an den Home-Assistant-Rechner anschließen und in der App als Gateway eintragen (/dev/serial/by-id/…, 57600 Baud, esp2).",
+    "Unter „Netzwerk“ der App dem Port dieses Gateways (z. B. 9100) einen Host-Port geben und die Adresse des Windows-PCs in allowed_clients eintragen.",
+    "Auf dem PC einen virtuellen COM-Port anlegen, der per TCP mit <Home-Assistant-Adresse>:9100 verbindet (z. B. HW VSP3), und ihn in PCT14 wählen.",
+    "Hier das FAM14 wählen, unter „Senden erlauben“ den PC wählen und den Mitschnitt starten.",
+    "In PCT14 lesen oder schreiben, Mitschnitt beenden, Datei herunterladen.",
+  ],
+  // tools
+  test: "Gateway-Test", testNote: "Liest 20-mal die Base-ID und misst, wie schnell und zuverlässig das Gateway antwortet. Sendet nichts über Funk.",
+  testStart: "Test starten", testRunning: "Test läuft …", testResult: "{answered} von {sent} beantwortet", testTimes: "Ø {avg} ms · max. {max} ms",
+  testGood: "Gateway antwortet zuverlässig.", testLost: "{lost} Antworten fehlen – Verbindung oder Gateway prüfen.",
+  send: "Rahmen senden", sendNote: "Ein vollständiger {proto}-Rahmen in Hex. Er wird wirklich gesendet: Aktoren schalten!",
+  sendBtn: "Senden …", hexLabel: "Rahmen in Hex",
+  confirmSend: "Diesen Rahmen wirklich an „{gw}“ senden? Aktoren können schalten.",
+  badHex: "Nur Hex-Ziffern in Paaren (0–9, A–F), getrennt höchstens durch Leerzeichen, : oder -",
+  cEmpty: "z. B. aus „Telegramme“ übernehmen oder eintippen.", cBytes: "{n} Bytes",
+  cSync2: "ESP2-Rahmen beginnen mit A5 5A.", cLen2: "ESP2-Rahmen haben 14 Bytes, dieser hat {n}.",
+  cSync3: "ESP3-Rahmen beginnen mit 55.", cShort3: "Zu kurz für einen ESP3-Rahmen.", cLen3: "Laut Kopf {want} Bytes, eingegeben {n}.",
+  cSum: "Prüfsumme falsch (erwartet {want}).", cHcrc: "Kopf-CRC falsch (erwartet {want}).", cDcrc: "Daten-CRC falsch (erwartet {want}).",
+  cAdd: "Prüfsumme ergänzen", cFix: "Korrigieren", cOk: "Gültiger {proto}-Rahmen",
   answer: "Antwort", noAnswer: "keine Antwort erwartet oder erhalten", error: "Fehler",
-  connecting: "Verbindet …", staleLabel: "Keine Verbindung", staleSince: "Stand von {time}", issues: "Auffälligkeiten", noIssues: "keine", live: "Live", pausedLabel: "Pausiert",
-  ofLimit: "von 1 %", telegramsShort: "Telegramme", unrestricted: "keine Einschränkung (nur Supervisor-Netz, solange keine Ports freigegeben sind)",
-  confirmSend: "Diesen Rahmen wirklich an das Gateway senden? Aktoren können schalten.", badHex: "Nur Hex-Zeichen in Paaren (0–9, A–F), getrennt höchstens durch Leerzeichen, : oder -", hexLabel: "Rahmen in Hex",
-  gatewayLabel: "Gateway für den Mitschnitt", peerLabel: "Programm, das allein senden darf", show: "Anzeigen",
+  why: "Nicht möglich: {reason}", whyDown: "Gateway nicht verbunden.", whyLocked: "für den Mitschnitt von {peer} reserviert.",
+  sentLog: "Zuletzt gesendet",
 } : {
-  connected: "Connected", disconnected: "Disconnected", since: "since", lastError: "Last error",
-  port: "Port", clients: "Programs", noClients: "No program connected", replayTag: "replay",
-  fromGateway: "from gateway", toGateway: "to gateway", queue: "queue", dropped: "dropped",
-  replayed: "replayed", refused: "refused", slow: "disconnected (stalled)", locked: "held back",
-  replay: "Replay buffer", kept: "telegrams", oldest: "oldest", maxAge: "at most",
-  allowed: "Allowed clients", everyone: "everyone in the Supervisor network / opened ports",
-  frames: "Recent frames", pause: "Pause", resume: "Resume", all: "All", radio: "Radio",
-  answers: "Answers", other: "Other", time: "Time", dir: "Direction", kind: "Kind", peer: "Program",
-  data: "Frame", none: "No frames yet.", running: "running for", offline: "No connection to the app",
-  version: "Version", duty: "Air time (last hour)", dutyOf: "of the allowed 1 %", telegramsSent: "telegrams sent",
-  alone: "Only {peer} may send",
-  capture: "Capture", captureIdle: "No capture running.", captureRunning: "Capture running",
-  frames_: "frames", gateway: "Gateway", allGateways: "All gateways", exclusive: "Only this program may send",
-  nobody: "(everyone may send)", start: "Start capture", stop: "Stop capture", files: "Captures",
-  noFiles: "No captures yet.", download: "Download", del: "Delete", confirmDelete: "Delete capture?",
-  captureNote: "Writes every frame in both directions to /share/enocean_proxy. For PCT14: connect PCT14 to this gateway through a virtual COM port over TCP and pick it here as the only sending program. Stops by itself at 50 MB.",
-  tools: "Tools", test: "Gateway test", testNote: "Reads the base ID 20 times: how fast and reliably the gateway answers. Sends nothing over the air.",
-  testResult: "{answered} of {sent} answered · avg {avg} ms · max {max} ms", send: "Send frame",
-  sendNote: "A complete ESP2 or ESP3 frame in hex (e.g. A5 5A 6B 05 …). It is really sent: actuators switch!",
+  version: "Version", running: "running for", live: "Live", offline: "No connection to the app", asOf: "as of {time}",
+  loading: "Loading …", noGateways: "No gateways configured. Add them in the app's configuration.",
+  connected: "Connected", disconnected: "Disconnected", connecting: "Connecting …", since: "for", port: "Port",
+  tabOverview: "Overview", tabMonitor: "Telegrams", tabCapture: "Capture", tabTools: "Tools",
+  captureRunning: "Capture running",
+  allGood: "All good: gateway connected, nothing unusual since the start.",
+  iDown: "Gateway unreachable", iDownText: "{error} – the app retries every few seconds. Connected programs stay connected.",
+  iConnecting: "Connecting", iConnectingText: "The app is opening the connection to the gateway.",
+  iLocked: "Reserved for a capture", iLockedText: "Only {peer} may send. Telegrams from other programs (Home Assistant too) are held back until the capture ends.",
+  iNoClients: "No program connected", iNoClientsText: "No program uses port {port} yet. Radio telegrams are kept for replay until one does.",
+  iDropped: "{n} telegrams dropped", iDroppedText: "Programs sent while the gateway was disconnected (since the start).",
+  iRefused: "{n} connections refused", iRefusedText: "From addresses not in allowed_clients (since the start).",
+  iSlow: "{n} programs disconnected", iSlowText: "They stopped reading and would have held up the proxy (since the start).",
+  iHeld: "{n} telegrams held back", iHeldText: "Only one program was allowed to send during a capture (since the start).",
+  iQueue: "{n} telegrams queued", iQueueText: "The gateway cannot keep up. Check the gateway and send_gap_ms.",
+  iDuty: "High air time: {pct} % of the allowance", iDutyText: "A sender may be on air for at most 1 % of the time. Check automations that send very often.",
+  received: "received", sent: "sent", replayed: "replayed", queue: "queue",
+  fromGateway: "from gateway", toGateway: "to gateway",
+  clients: "Connected programs", noClients: "None", replayTag: "replay", aloneTag: "sends alone",
+  clientsNote: "Programs with “replay” get the telegrams they missed after a restart.",
+  replay: "Replay buffer", kept: "{kept} of {size} telegrams", oldest: "oldest {age} ago", maxAge: "kept at most {age}",
+  replayNote: "Collects radio telegrams while no program with replay is connected.",
+  duty: "Air time (last hour)", dutyText: "{pct} % of the allowed 1 % · {n} telegrams sent",
+  dutyNote: "From 80 % on, the app logs a warning.",
+  access: "Access", unrestricted: "No restriction", unrestrictedNote: "Only programs in the Supervisor network reach the port while it is not opened under “Network”.",
+  allowedNote: "Only these addresses may connect (allowed_clients).",
+  newest: "Latest telegrams", showAll: "Show all",
+  pause: "Pause", resume: "Resume", resumeNew: "Resume ({n} new)", all: "All", radio: "Radio", answers: "Answers", other: "Other",
+  allDirs: "Both directions", search: "Search: ID, program, hex …", searchLabel: "Search telegrams", dirLabel: "Direction",
+  shown: "{n} of {total} frames", total: "The last {total} frames", pausedAt: "paused at {time}",
+  program1: "1 program", programs: "{n} programs", time: "Time", kind: "Kind", sender: "Sender", peer: "Program", data: "Frame", none: "No frames yet.", noMatch: "No frame matches the filter.",
+  copy: "Copy", copied: "Copied", toSend: "Use in “Send frame”", filterId: "Show only this ID", clear: "Clear filter",
+  capTitle: "New capture", capGateway: "Gateway", allGateways: "All gateways", capPeer: "Allow sending",
+  everyone: "All programs", onlyPeer: "Only {peer}",
+  capWhat: "Writes every frame in both directions with time, kind and program to a file under /share/enocean_proxy. Stops by itself at 50 MB.",
+  capPeerNote: "With “Only …”, Home Assistant keeps listening but cannot send, so nothing disturbs e.g. PCT14's memory access.",
+  capPeerAll: "A single sending program: pick one gateway first.",
+  capPeerNone: "No program connected – connect the program that should send alone first.",
+  start: "Start capture", stop: "Stop capture",
+  capFile: "File", capFrames: "Frames", capFor: "Duration", capOn: "Gateway", capAlone: "Sends alone",
+  files: "Saved captures", noFiles: "No captures yet.", download: "Download", del: "Delete", confirmDelete: "Delete capture “{name}”?",
+  running_: "running",
+  pctHelp: "How to record PCT14 with a FAM14",
+  pctSteps: [
+    "Connect the FAM14 to the Home Assistant machine and add it to the app as a gateway (/dev/serial/by-id/…, 57600 baud, esp2).",
+    "In the app's “Network” section, give that gateway's port (e.g. 9100) a host port and put the Windows PC's address into allowed_clients.",
+    "On the PC, create a virtual COM port that connects over TCP to <Home Assistant address>:9100 (e.g. HW VSP3) and pick it in PCT14.",
+    "Here, pick the FAM14, choose the PC under “Allow sending” and start the capture.",
+    "Read or write in PCT14, stop the capture, download the file.",
+  ],
+  test: "Gateway test", testNote: "Reads the base ID 20 times and measures how fast and reliably the gateway answers. Sends nothing over the air.",
+  testStart: "Start test", testRunning: "Test running …", testResult: "{answered} of {sent} answered", testTimes: "avg {avg} ms · max {max} ms",
+  testGood: "The gateway answers reliably.", testLost: "{lost} answers missing – check the connection or the gateway.",
+  send: "Send frame", sendNote: "A complete {proto} frame in hex. It is really sent: actuators switch!",
+  sendBtn: "Send …", hexLabel: "Frame in hex",
+  confirmSend: "Really send this frame to “{gw}”? Actuators may switch.",
+  badHex: "Hex digits in pairs only (0–9, A–F), separated at most by spaces, : or -",
+  cEmpty: "e.g. take one from “Telegrams” or type it.", cBytes: "{n} bytes",
+  cSync2: "ESP2 frames start with A5 5A.", cLen2: "ESP2 frames have 14 bytes, this one has {n}.",
+  cSync3: "ESP3 frames start with 55.", cShort3: "Too short for an ESP3 frame.", cLen3: "The header says {want} bytes, {n} entered.",
+  cSum: "Wrong checksum (expected {want}).", cHcrc: "Wrong header CRC (expected {want}).", cDcrc: "Wrong data CRC (expected {want}).",
+  cAdd: "Add checksum", cFix: "Fix", cOk: "Valid {proto} frame",
   answer: "Answer", noAnswer: "no answer expected or received", error: "Error",
-  connecting: "Connecting …", staleLabel: "No connection", staleSince: "as of {time}", issues: "Issues", noIssues: "none", live: "Live", pausedLabel: "Paused",
-  ofLimit: "of 1 %", telegramsShort: "telegrams", unrestricted: "no restriction (Supervisor network only while no ports are opened)",
-  confirmSend: "Really send this frame to the gateway? Actuators may switch.", badHex: "Hex digits in pairs only (0–9, A–F), separated at most by spaces, : or -", hexLabel: "Frame in hex",
-  gatewayLabel: "Gateway to capture", peerLabel: "Program that may send alone", show: "Show",
+  why: "Not possible: {reason}", whyDown: "gateway not connected.", whyLocked: "reserved for the capture of {peer}.",
+  sentLog: "Recently sent",
 };
 document.documentElement.lang = DE ? "de" : "en";
-// seq/shown: answers that arrive late never replace a newer one; stale: the app did not answer
-const state = { paused: false, kind: "", last: null, built: "", seq: 0, shown: 0, loading: false, stale: false };
+
+// helpers ---------------------------------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fill = (text, values) => text.replace(/\{(\w+)\}/g, (_m, k) => values[k] ?? "–");
@@ -193,33 +331,44 @@ const duration = (s) => {
   return `${(s / 86400).toFixed(1)} d`;
 };
 const size = (b) => (b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
-const clock = (t) => {
-  const d = new Date(t * 1000);
-  return d.toLocaleTimeString(DE ? "de-DE" : "en-GB", { hour12: false }) + "." + String(d.getMilliseconds()).padStart(3, "0");
+const LOCALE = DE ? "de-DE" : "en-GB";
+const hms = (t) => new Date(t * 1000).toLocaleTimeString(LOCALE, { hour12: false });
+const clock = (t) => `${hms(t)}.${String(new Date(t * 1000).getMilliseconds()).padStart(3, "0")}`;
+const stamp = (t) => new Date(t * 1000).toLocaleString(LOCALE, { hour12: false, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const num = (n) => Number(n || 0).toLocaleString(LOCALE);
+const kindLabel = (k) => ({ radio: T.radio, answer: T.answers, other: T.other })[k] || k;
+
+// what the viewer looked at last (gateway, tab) survives a reload; storage may be blocked
+const VIEW_KEY = "enocean-proxy-view";
+const saved = (() => { try { return JSON.parse(localStorage.getItem(VIEW_KEY)) || {}; } catch (err) { return {}; } })();
+const TABS = ["overview", "monitor", "capture", "tools"];
+const state = {
+  last: null, stale: false, seq: 0, shown: 0, loading: false,  // seq/shown: late answers never replace newer ones
+  gw: saved.gw || null, tab: TABS.includes(saved.tab) ? saved.tab : "overview",
+  built: "", panel: "",
+  paused: false, frozen: null, pausedAt: 0, kind: "", dir: "", q: "",  // monitor filters
+  hex: {}, sends: {}, tests: {}, busy: {},  // tools, per gateway name
 };
-const metric = (value, label, warn) => `<div class="metric${warn ? " warn" : ""}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
-const kindLabel = () => ({ radio: T.radio, answer: T.answers, other: T.other });
+const remember = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ gw: state.gw, tab: state.tab })); } catch (err) { /* private mode */ } };
 
 // Redraw only what changed, every 2 s: text being selected (to copy a frame) is left alone
 // until the next round, and the focus stays on the same button or link.
 const drawn = new WeakMap();
 let forced = false;  // a click of the user redraws even over a selection
-const FOCUS_KEYS = ["data-delete", "href"];
+const FOCUS_KEYS = ["data-delete", "href", "data-kind", "data-gw", "data-copy", "data-tpl", "data-q", "data-goto"];
 const selecting = (el) => {
   const sel = document.getSelection();
   return !!sel && !sel.isCollapsed && el.contains(sel.anchorNode);
 };
 function draw(el, html) {
-  if (drawn.get(el) === html || (!forced && selecting(el))) return;
+  if (!el || drawn.get(el) === html || (!forced && selecting(el))) return;
   const active = document.activeElement;
   const focus = el.contains(active) ? FOCUS_KEYS.map((a) => [a, active.getAttribute(a)]).find(([, v]) => v != null) : null;
   el.innerHTML = html;
   drawn.set(el, html);
   if (focus) [...el.querySelectorAll(`[${focus[0]}]`)].find((n) => n.getAttribute(focus[0]) === focus[1])?.focus({ preventScroll: true });
 }
-function text(el, value) {
-  if (el.textContent !== value) el.textContent = value;
-}
+const text = (el, value) => { if (el && el.textContent !== value) el.textContent = value; };
 // newest frames come on top: someone scrolled down keeps looking at the same frames
 function drawFrames(el, html) {
   const top = el.getBoundingClientRect().top + (el.querySelector("thead")?.getBoundingClientRect().height || 0);
@@ -234,140 +383,361 @@ async function api(path, body) {
   const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
-  const text = await response.text();
+  const raw = await response.text();
   let data = null;
-  try { data = JSON.parse(text); } catch (err) { /* plain text answer */ }
-  if (!response.ok) throw new Error((data && data.error) || text || response.statusText);
+  try { data = JSON.parse(raw); } catch (err) { /* plain text answer */ }
+  if (!response.ok) throw new Error((data && data.error) || raw || response.statusText);
   return data;
 }
 
-// structure: built once per set of gateways, so inputs keep their content ------------------
-function build(data) {
-  $("capture").innerHTML = `
-    <div class="top"><h2>${T.capture}</h2><span id="cap-state"></span></div>
-    <div class="note">${esc(T.captureNote)}</div>
-    <div class="row">
-      <select id="cap-gateway" aria-label="${esc(T.gatewayLabel)}"><option value="">${esc(T.allGateways)}</option>${data.gateways.map((g) => `<option>${esc(g.name)}</option>`).join("")}</select>
-      <select id="cap-peer" title="${esc(T.exclusive)}" aria-label="${esc(T.peerLabel)}"><option value="">${esc(T.nobody)}</option></select>
-      <button class="primary" id="cap-toggle"></button>
-    </div>
-    <div class="result" id="cap-result"></div>
-    <details><summary>${T.files}</summary><div class="files" id="cap-files"></div></details>`;
-  $("gateways").innerHTML = data.gateways.map((g, i) => `
-    <section class="card">
-      <div class="top"><h2>${esc(g.name)}</h2><span id="pill-${i}"></span><span id="lock-${i}"></span></div>
-      <div class="sub mono" id="sub-${i}"></div>
-      <div id="err-${i}"></div>
-      <div class="metrics" id="metrics-${i}"></div>
-      <div class="issues" id="issues-${i}"></div>
-      <div class="grid">
-        <div><h3>${T.clients}</h3><div id="clients-${i}"></div></div>
-        <div><h3>${T.replay}</h3><div id="replay-${i}"></div></div>
-        <div><h3>${T.duty}</h3><div id="duty-${i}"></div></div>
-        <div><h3>${T.allowed}</h3><div class="sub mono" id="allowed-${i}"></div></div>
-      </div>
-      <details><summary>${T.tools}</summary>
-        <div style="display:grid;gap:14px">
-          <div><div class="row"><button data-test="${i}">${T.test}</button><span class="result" id="test-${i}"></span></div>
-            <div class="note" style="margin-top:4px">${esc(T.testNote)}</div></div>
-          <div><div class="row"><input type="text" id="hex-${i}" placeholder="A5 5A …" autocomplete="off" spellcheck="false" aria-label="${esc(T.hexLabel)}"><button class="danger" data-send="${i}">${T.send}</button></div>
-            <div class="note" style="margin-top:4px">${esc(T.sendNote)}</div><div class="result" id="send-${i}"></div></div>
-        </div>
-      </details>
-      <h3 style="margin:0">${T.frames}</h3>
-      <div class="frames" id="frames-${i}"></div>
-    </section>`).join("");
-  state.built = data.gateways.map((g) => g.name).join("|");
+async function copy(value) {
+  try { await navigator.clipboard.writeText(value); return true; } catch (err) { /* blocked in the ingress frame */ }
+  const area = Object.assign(document.createElement("textarea"), { value });
+  area.style.position = "fixed"; area.style.opacity = "0";
+  document.body.append(area); area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  return ok;
 }
 
-function renderCapture(data) {
-  const c = data.capture;
-  draw($("cap-state"), c.active
-    ? `<span class="pill warn"><i></i>${T.captureRunning} · ${esc(c.file)} · ${c.frames} ${T.frames_} · ${duration(data.now - c.started)}</span>`
-    : `<span class="muted">${T.captureIdle}</span>`);
-  const toggle = $("cap-toggle");
-  toggle.textContent = c.active ? T.stop : T.start;
-  toggle.classList.toggle("primary", !c.active);
-  $("cap-gateway").disabled = $("cap-peer").disabled = c.active;
-  const gw = data.gateways.find((g) => g.name === $("cap-gateway").value);
-  const peers = gw ? [...new Set(gw.clients.map((cl) => cl.peer))] : [];
-  const select = $("cap-peer");
-  if (select.dataset.peers !== peers.join("\n")) {  // an open list is not rebuilt every 2 s
-    const chosen = select.value;
-    select.innerHTML = `<option value="">${esc(T.nobody)}</option>` + peers.map((p) => `<option${p === chosen ? " selected" : ""}>${esc(p)}</option>`).join("");
-    select.dataset.peers = peers.join("\n");
+// frames: parse and check what the user types before it goes out ---------------------------------
+const parseHex = (raw) => {
+  const hex = raw.replace(/[\s:-]/g, "");
+  if (!hex) return [];
+  if (/[^0-9a-fA-F]/.test(hex) || hex.length % 2) return null;
+  return hex.match(/../g).map((b) => parseInt(b, 16));
+};
+const toHex = (bytes) => bytes.map((b) => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
+const crc8 = (bytes) => bytes.reduce((crc, byte) => {
+  crc ^= byte;
+  for (let i = 0; i < 8; i++) crc = crc & 0x80 ? ((crc << 1) ^ 0x07) & 0xff : (crc << 1) & 0xff;
+  return crc;
+}, 0);
+const hx = (b) => b.toString(16).padStart(2, "0").toUpperCase();
+
+// {level: ok|bad|empty, msg, fix: corrected bytes or null}
+function checkFrame(bytes, protocol) {
+  if (bytes === null) return { level: "bad", msg: T.badHex };
+  if (!bytes.length) return { level: "empty", msg: T.cEmpty };
+  const proto = protocol.toUpperCase();
+  if (protocol === "esp2") {
+    if (bytes[0] !== 0xa5 || bytes[1] !== 0x5a) return { level: "bad", msg: T.cSync2 };
+    const sum = bytes.slice(2, 13).reduce((a, b) => a + b, 0) & 0xff;
+    if (bytes.length === 13) return { level: "bad", msg: fill(T.cLen2, { n: 13 }), fix: [...bytes, sum], fixLabel: T.cAdd };
+    if (bytes.length !== 14) return { level: "bad", msg: fill(T.cLen2, { n: bytes.length }) };
+    if (bytes[13] !== sum) return { level: "bad", msg: fill(T.cSum, { want: hx(sum) }), fix: [...bytes.slice(0, 13), sum], fixLabel: T.cFix };
+    return { level: "ok", msg: fill(T.cOk, { proto }) };
   }
-  select.style.display = gw ? "" : "none";
-  draw($("cap-files"), c.files.length
-    ? `<ul>${c.files.map((f) => `<li><a href="api/captures/${encodeURIComponent(f.name)}" download>${esc(f.name)}</a><span class="muted">${size(f.size)}</span>${c.active && c.file === f.name ? "" : `<button class="danger" data-delete="${esc(f.name)}">${T.del}</button>`}</li>`).join("")}</ul>`
-    : `<div class="muted">${T.noFiles}</div>`);
+  if (bytes[0] !== 0x55) return { level: "bad", msg: T.cSync3 };
+  if (bytes.length < 7) return { level: "bad", msg: T.cShort3 };
+  const hcrc = crc8(bytes.slice(1, 5));
+  if (bytes[5] !== hcrc) { const fix = [...bytes]; fix[5] = hcrc; return { level: "bad", msg: fill(T.cHcrc, { want: hx(hcrc) }), fix, fixLabel: T.cFix }; }
+  const want = 7 + ((bytes[1] << 8) | bytes[2]) + bytes[3];
+  const dcrc = crc8(bytes.slice(6, want - 1));
+  if (bytes.length === want - 1) return { level: "bad", msg: fill(T.cLen3, { want, n: bytes.length }), fix: [...bytes, dcrc], fixLabel: T.cAdd };
+  if (bytes.length !== want) return { level: "bad", msg: fill(T.cLen3, { want, n: bytes.length }) };
+  if (bytes[want - 1] !== dcrc) return { level: "bad", msg: fill(T.cDcrc, { want: hx(dcrc) }), fix: [...bytes.slice(0, -1), dcrc], fixLabel: T.cFix };
+  return { level: "ok", msg: fill(T.cOk, { proto }) };
 }
 
-function renderGateway(g, i, now) {
-  const s = g.stats;
-  draw($(`pill-${i}`), g.connected
-    ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(now - g.connected_since)}` : ""}</span>`
-    : g.last_error
-      ? `<span class="pill bad"><i></i>${T.disconnected}</span>`
-      : `<span class="pill warn"><i></i>${T.connecting}</span>`);
-  draw($(`lock-${i}`), g.exclusive_peer ? `<span class="pill warn"><i></i>${esc(fill(T.alone, { peer: g.exclusive_peer }))}</span>` : "");
-  text($(`sub-${i}`), [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · "));
-  draw($(`err-${i}`), g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : "");
-  draw($(`metrics-${i}`), metric(s.from_gateway, T.fromGateway) + metric(s.to_gateway, T.toGateway)
-    + metric(g.queue, T.queue, g.queue > 10) + metric(s.replayed, T.replayed));
-  const issues = [[s.dropped, T.dropped], [s.refused, T.refused], [s.slow_clients, T.slow], [s.locked, T.locked]]
-    .filter(([n]) => n > 0).map(([n, label]) => `<span class="bad">${Number(n)} ${esc(label)}</span>`);
-  draw($(`issues-${i}`), `<span class="muted">${T.issues}:</span> ${issues.length ? issues.join(" · ") : `<span class="ok">${T.noIssues}</span>`}`);
-  draw($(`clients-${i}`), g.clients.length
-    ? `<ul>${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}</li>`).join("")}</ul>`
-    : `<div class="muted">${T.noClients}</div>`);
-  const r = g.replay;
-  draw($(`replay-${i}`), `<div class="bar"><div style="width:${r.size ? Math.min(100, (r.kept * 100) / r.size) : 0}%"></div></div>
-    <div class="sub" style="margin-top:6px">${r.kept} / ${r.size} ${T.kept}${r.oldest_s != null ? ` · ${T.oldest} ${duration(r.oldest_s)}` : ""} · ${T.maxAge} ${duration(r.max_age_s)}</div>`);
-  const d = g.duty_cycle;
-  const level = d.of_limit >= 80 ? "var(--bad)" : d.of_limit >= 50 ? "var(--warn)" : "var(--accent)";
-  draw($(`duty-${i}`), `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${level}"></div></div>
-    <div class="sub" style="margin-top:6px">${Number(d.of_limit)} % ${T.ofLimit} · ${Number(d.telegrams)} ${T.telegramsShort}</div>`);
-  text($(`allowed-${i}`), g.allowed_clients.length ? g.allowed_clients.join(", ") : T.unrestricted);
-  const labels = kindLabel();
-  const frames = g.recent.filter((f) => !state.kind || f.kind === state.kind).slice().reverse();
-  drawFrames($(`frames-${i}`), frames.length
-    ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr data-k="${esc(`${f.time}|${f.dir}|${f.hex}`)}">
-        <td class="mono">${clock(f.time)}</td><td class="${f.dir === "tx" ? "tx" : "rx"}" title="${esc(f.dir === "tx" ? T.toGateway : T.fromGateway)}">${f.dir === "tx" ? "↑" : "↓"}</td>
-        <td>${esc(labels[f.kind] || f.kind)}</td><td class="mono peer">${esc(f.peer || "")}</td><td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="empty">${T.none}</div>`);
+// what is wrong with a gateway, worst first --------------------------------------------------
+function issues(g) {
+  const s = g.stats, out = [];
+  const add = (level, title, body, values = {}) => out.push({ level, title: fill(title, values), body: fill(body, values) });
+  if (!g.connected) {
+    if (g.last_error) add("bad", T.iDown, T.iDownText, { error: g.last_error });
+    else add("warn", T.iConnecting, T.iConnectingText);
+  }
+  if (g.duty_cycle.of_limit >= 80) add("bad", T.iDuty, T.iDutyText, { pct: g.duty_cycle.of_limit });
+  else if (g.duty_cycle.of_limit >= 50) add("warn", T.iDuty, T.iDutyText, { pct: g.duty_cycle.of_limit });
+  if (g.exclusive_peer) add("warn", T.iLocked, T.iLockedText, { peer: g.exclusive_peer });
+  if (g.queue > 10) add("warn", T.iQueue, T.iQueueText, { n: g.queue });
+  if (s.dropped) add("warn", T.iDropped, T.iDroppedText, { n: num(s.dropped) });
+  if (s.slow_clients) add("warn", T.iSlow, T.iSlowText, { n: num(s.slow_clients) });
+  if (s.refused) add("warn", T.iRefused, T.iRefusedText, { n: num(s.refused) });
+  if (s.locked) add("info", T.iHeld, T.iHeldText, { n: num(s.locked) });
+  if (!g.clients.length) add("info", T.iNoClients, T.iNoClientsText, { port: g.port });
+  return out;
 }
+const levelOf = (list) => (list.some((i) => i.level === "bad") ? "bad" : list.some((i) => i.level === "warn") ? "warn" : "ok");
+const current = () => state.last?.gateways.find((g) => g.name === state.gw) || state.last?.gateways[0];
 
-function renderToolbar() {
+// header, gateway switcher, gateway head, tabs ------------------------------------------------
+function renderHeader() {
   const live = $("live");
-  live.classList.toggle("paused", state.paused && !state.stale);
-  live.classList.toggle("stale", state.stale);
-  live.querySelector("span").textContent = state.stale ? T.staleLabel : state.paused ? T.pausedLabel : T.live;
+  live.classList.toggle("ok", !state.stale && !!state.last);
+  live.classList.toggle("bad", state.stale);
+  text(live.querySelector("span"), state.stale ? T.offline : state.last ? T.live : T.loading);
   document.body.classList.toggle("stale", state.stale);
-  $("pause").textContent = state.paused ? T.resume : T.pause;
-  $("pause").setAttribute("aria-pressed", String(state.paused));
-  for (const button of $("kinds").children) button.setAttribute("aria-pressed", String(button.dataset.kind === state.kind));
-}
-
-function buildToolbar() {
-  const labels = kindLabel();
-  $("kinds").innerHTML = ["", "radio", "answer", "other"].map((k) =>
-    `<button data-kind="${k}" aria-pressed="false">${esc(k ? labels[k] : T.all)}</button>`).join("");
-}
-
-function render() {
-  renderToolbar();
   const data = state.last;
   if (!data) return;
-  if (state.built !== data.gateways.map((g) => g.name).join("|")) build(data);
-  $("meta").textContent = `${T.version} ${data.version || "?"} · ${T.running} ${duration(data.now - data.started)}`;
-  renderCapture(data);
-  data.gateways.forEach((g, i) => renderGateway(g, i, data.now));
+  const meta = `${T.version} ${data.version || "?"} · ${T.running} ${duration(data.now - data.started)}`;
+  text($("meta"), state.stale ? `${meta} · ${fill(T.asOf, { time: hms(data.now) })}` : meta);
+  const c = data.capture;
+  draw($("capflag"), c.active ? `<button class="pill warn" data-goto="capture"><i></i>${T.captureRunning} · ${duration(data.now - c.started)}</button>` : "");
+}
+
+function buildShell(data) {
+  $("gws").hidden = data.gateways.length < 2;
+  $("gwhead").hidden = $("tabs").hidden = false;
+  $("gwhead").innerHTML = `<div class="title"><h2 id="gw-name"></h2><span id="gw-pill"></span></div><div class="sub" id="gw-sub"></div>`;
+  $("tabs").innerHTML = TABS.map((t) => `<button role="tab" id="tab-${t}" data-tab="${t}" aria-controls="panel">${esc(T[`tab${t[0].toUpperCase()}${t.slice(1)}`])}<span id="badge-${t}"></span></button>`).join("");
+}
+
+function renderShell(data, g) {
+  draw($("gws"), data.gateways.map((x) => {
+    const level = levelOf(issues(x));
+    return `<button class="gwchip" role="tab" data-gw="${esc(x.name)}" aria-selected="${x.name === g.name}"><span class="dot ${level}"></span><span><b>${esc(x.name)}</b><br><small>${T.port} ${x.port} · ${esc(fill(x.clients.length === 1 ? T.program1 : T.programs, { n: x.clients.length }))}</small></span></button>`;
+  }).join(""));
+  text($("gw-name"), g.name);
+  draw($("gw-pill"), g.connected
+    ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(data.now - g.connected_since)}` : ""}</span>`
+    : g.last_error ? `<span class="pill bad"><i></i>${T.disconnected}</span>` : `<span class="pill warn"><i></i>${T.connecting}</span>`);
+  text($("gw-sub"), [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · "));
+  for (const t of TABS) {
+    const tab = $(`tab-${t}`);
+    tab.setAttribute("aria-selected", String(t === state.tab));
+    tab.tabIndex = t === state.tab ? 0 : -1;
+  }
+  const list = issues(g).filter((i) => i.level !== "info");
+  draw($("badge-overview"), list.length ? `<span class="badge ${levelOf(list)}">${list.length}</span>` : "");
+  draw($("badge-capture"), data.capture.active ? `<span class="badge warn">${T.running_}</span>` : "");
+  $("panel").setAttribute("aria-labelledby", `tab-${state.tab}`);
+}
+
+// overview -------------------------------------------------------------------------------------
+const PANELS = {};
+PANELS.overview = {
+  build: () => `
+    <div id="ov-health"></div>
+    <div class="metrics" id="ov-metrics"></div>
+    <div class="grid2">
+      <section class="card"><h3>${T.clients}</h3><div id="ov-clients"></div><p class="note">${esc(T.clientsNote)}</p></section>
+      <section class="card"><h3>${T.replay}</h3><div id="ov-replay"></div><p class="note">${esc(T.replayNote)}</p></section>
+      <section class="card"><h3>${T.duty}</h3><div id="ov-duty"></div><p class="note">${esc(T.dutyNote)}</p></section>
+      <section class="card"><h3>${T.access}</h3><div id="ov-access"></div></section>
+    </div>
+    <section class="card"><div class="cardhead"><h3>${T.newest}</h3><button class="link" data-goto="monitor">${T.showAll} →</button></div>
+      <div class="frames short" id="ov-frames"></div></section>`,
+  render(g, data) {
+    const list = issues(g);
+    draw($("ov-health"), list.length
+      ? `<ul class="health">${list.map((i) => `<li class="${i.level}"><span class="dot"></span><div><b>${esc(i.title)}</b><p class="note">${esc(i.body)}</p></div></li>`).join("")}</ul>`
+      : `<div class="allgood">✓ ${esc(T.allGood)}</div>`);
+    const s = g.stats;
+    const metric = (value, label, sub, warn) => `<div class="metric${warn ? " warn" : ""}"><b>${esc(value)}</b><span>${esc(label)}${sub ? ` · ${esc(sub)}` : ""}</span></div>`;
+    draw($("ov-metrics"), metric(num(s.from_gateway), T.received, T.fromGateway) + metric(num(s.to_gateway), T.sent, T.toGateway)
+      + metric(num(s.replayed), T.replayed) + metric(num(g.queue), T.queue, "", g.queue > 10));
+    draw($("ov-clients"), g.clients.length
+      ? `<ul class="plain">${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}${c.peer === g.exclusive_peer ? `<span class="tag warn">${T.aloneTag}</span>` : ""}</li>`).join("")}</ul>`
+      : `<div class="muted">${T.noClients}</div>`);
+    const r = g.replay;
+    draw($("ov-replay"), `<div class="bar"><div style="width:${r.size ? Math.min(100, (r.kept * 100) / r.size) : 0}%"></div></div>
+      <div class="note">${esc([fill(T.kept, { kept: num(r.kept), size: num(r.size) }), r.oldest_s != null ? fill(T.oldest, { age: duration(r.oldest_s) }) : "", fill(T.maxAge, { age: duration(r.max_age_s) })].filter(Boolean).join(" · "))}</div>`);
+    const d = g.duty_cycle;
+    const color = d.of_limit >= 80 ? "var(--bad)" : d.of_limit >= 50 ? "var(--warn)" : "var(--accent)";
+    draw($("ov-duty"), `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${color}"></div></div>
+      <div class="note">${esc(fill(T.dutyText, { pct: Number(d.of_limit), n: num(d.telegrams) }))}</div>`);
+    draw($("ov-access"), g.allowed_clients.length
+      ? `<div class="row">${g.allowed_clients.map((a) => `<span class="tag mono">${esc(a)}</span>`).join("")}</div><p class="note">${esc(T.allowedNote)}</p>`
+      : `<div>${T.unrestricted}</div><p class="note">${esc(T.unrestrictedNote)}</p>`);
+    drawFrames($("ov-frames"), frameTable(g.recent.slice(-6).reverse(), false));
+  },
+};
+
+// telegrams ---------------------------------------------------------------------------------------
+function frameTable(frames, actions) {
+  if (!frames.length) return `<div class="empty">${T.none}</div>`;
+  return `<table><thead><tr><th>${T.time}</th><th aria-label="${esc(T.dirLabel)}"></th><th>${T.kind}</th><th>${T.sender}</th><th>${T.peer}</th><th>${T.data}</th>${actions ? "<th></th>" : ""}</tr></thead><tbody>${frames.map((f) => `<tr data-k="${esc(`${f.time}|${f.dir}|${f.hex}`)}">
+    <td class="mono">${clock(f.time)}</td>
+    <td class="${f.dir === "tx" ? "tx" : "rx"}" title="${esc(f.dir === "tx" ? T.toGateway : T.fromGateway)}">${f.dir === "tx" ? "↑" : "↓"}</td>
+    <td>${esc(kindLabel(f.kind))}${f.rorg ? ` <span class="tag">${esc(f.rorg)}</span>` : ""}</td>
+    <td class="mono sender">${f.sender ? (actions ? `<button class="link mono" data-q="${esc(f.sender)}" title="${esc(T.filterId)}">${esc(f.sender)}</button>` : esc(f.sender)) : ""}</td>
+    <td class="mono peer">${esc(f.peer || "")}</td>
+    <td class="hex">${esc(f.hex.toUpperCase())}</td>
+    ${actions ? `<td class="act"><button class="icon" data-copy="${esc(f.hex)}" title="${esc(T.copy)}" aria-label="${esc(T.copy)}">⧉</button> <button class="icon" data-tpl="${esc(f.hex)}" title="${esc(T.toSend)}" aria-label="${esc(T.toSend)}">↗</button></td>` : ""}
+  </tr>`).join("")}</tbody></table>`;
+}
+
+function matches(f) {
+  if (state.kind && f.kind !== state.kind) return false;
+  if (state.dir && f.dir !== state.dir) return false;
+  const q = state.q.trim().toLowerCase();
+  if (!q) return true;
+  const bare = q.replace(/[\s:-]/g, "");
+  return (bare && (f.hex.replace(/ /g, "").includes(bare) || (f.sender || "").replace(/-/g, "").toLowerCase().includes(bare)))
+    || (f.peer || "").toLowerCase().includes(q) || (f.rorg || "").toLowerCase() === q;
+}
+
+PANELS.monitor = {
+  build: () => `
+    <section class="card">
+      <div class="mtools">
+        <button id="pause" aria-pressed="false"></button>
+        <span class="seg" role="group" id="kinds"></span>
+        <select id="dir" aria-label="${esc(T.dirLabel)}">
+          <option value="">${esc(T.allDirs)}</option><option value="rx">↓ ${esc(T.fromGateway)}</option><option value="tx">↑ ${esc(T.toGateway)}</option>
+        </select>
+        <input type="search" id="q" placeholder="${esc(T.search)}" aria-label="${esc(T.searchLabel)}" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="row note"><span id="m-count"></span><span class="spacer"></span><button class="link" id="m-clear" hidden>${T.clear}</button></div>
+      <div class="frames" id="m-frames"></div>
+    </section>`,
+  init() {
+    $("dir").value = state.dir;
+    $("q").value = state.q;
+  },
+  render(g) {
+    const live = g.recent;
+    const frames = state.paused && state.frozen ? state.frozen : live;
+    const fresh = state.paused && state.frozen ? live.filter((f) => f.time > (state.frozen.at(-1)?.time ?? state.pausedAt)).length : 0;
+    text($("pause"), state.paused ? `▶ ${fresh ? fill(T.resumeNew, { n: fresh }) : T.resume}` : `❚❚ ${T.pause}`);
+    $("pause").setAttribute("aria-pressed", String(state.paused));
+    const count = (k) => frames.filter((f) => !k || f.kind === k).length;
+    draw($("kinds"), ["", "radio", "answer", "other"].map((k) =>
+      `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? kindLabel(k) : T.all)}<small>${count(k)}</small></button>`).join(""));
+    const shown = frames.filter(matches).slice().reverse();
+    const filtered = !!(state.kind || state.dir || state.q.trim());
+    text($("m-count"), [filtered ? fill(T.shown, { n: shown.length, total: frames.length }) : fill(T.total, { total: frames.length }),
+      state.paused ? fill(T.pausedAt, { time: hms(state.pausedAt) }) : ""].filter(Boolean).join(" · "));
+    $("m-clear").hidden = !filtered;
+    drawFrames($("m-frames"), shown.length || !frames.length ? frameTable(shown, true) : `<div class="empty">${T.noMatch}</div>`);
+  },
+};
+
+// capture -----------------------------------------------------------------------------------------
+PANELS.capture = {
+  build: (g, data) => `
+    <section class="card runbox" id="cap-run" hidden>
+      <div class="cardhead"><h3>${T.captureRunning}</h3></div>
+      <div class="stats" id="cap-stats"></div>
+      <div class="row"><button class="danger solid" id="cap-stop">${T.stop}</button><span class="result" id="cap-run-out"></span></div>
+    </section>
+    <section class="card" id="cap-form" hidden>
+      <h3>${T.capTitle}</h3>
+      <p class="note">${esc(T.capWhat)}</p>
+      <div class="grid2">
+        <label class="field">${T.capGateway}
+          <select id="cap-gateway"><option value="">${esc(T.allGateways)}</option>${data.gateways.map((x) => `<option${x.name === g.name ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>
+        <label class="field">${T.capPeer}<select id="cap-peer"></select></label>
+      </div>
+      <p class="note" id="cap-peer-note"></p>
+      <div class="row"><button class="primary" id="cap-start">${T.start}</button><span class="result" id="cap-out"></span></div>
+    </section>
+    <section class="card"><h3>${T.files}</h3><div id="cap-files"></div></section>
+    <details class="card help"><summary>${esc(T.pctHelp)}</summary><ol>${T.pctSteps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`,
+  render(_g, data) {
+    const c = data.capture;
+    $("cap-run").hidden = !c.active;
+    $("cap-form").hidden = c.active;
+    if (c.active) {
+      const file = c.files.find((f) => f.name === c.file);
+      draw($("cap-stats"), [
+        [T.capOn, c.gateway || T.allGateways], [T.capFrames, num(c.frames)], [T.capFor, duration(data.now - c.started)],
+        [T.capFile, `${c.file}${file ? ` (${size(file.size)})` : ""}`], ...(c.exclusive_peer ? [[T.capAlone, c.exclusive_peer]] : []),
+      ].map(([k, v]) => `<span><span class="muted">${esc(k)}:</span> <b>${esc(v)}</b></span>`).join(""));
+    } else {
+      const gw = data.gateways.find((x) => x.name === $("cap-gateway").value);
+      const peers = gw ? [...new Set(gw.clients.map((cl) => cl.peer))] : [];
+      const select = $("cap-peer");
+      if (select.dataset.peers !== `${gw?.name}\n${peers.join("\n")}`) {  // an open list is not rebuilt every 2 s
+        const chosen = select.value;
+        select.innerHTML = `<option value="">${esc(T.everyone)}</option>` + peers.map((p) => `<option value="${esc(p)}"${p === chosen ? " selected" : ""}>${esc(fill(T.onlyPeer, { peer: p }))}</option>`).join("");
+        select.dataset.peers = `${gw?.name}\n${peers.join("\n")}`;
+      }
+      select.disabled = !peers.length;
+      text($("cap-peer-note"), !gw ? T.capPeerAll : !peers.length ? T.capPeerNone : T.capPeerNote);
+    }
+    draw($("cap-files"), c.files.length
+      ? `<table><tbody>${c.files.map((f) => {
+          const live = c.active && c.file === f.name;
+          return `<tr><td class="hex"><a href="api/captures/${encodeURIComponent(f.name)}" download>${esc(f.name)}</a>${live ? ` <span class="tag warn">${T.running_}</span>` : ""}</td>
+            <td class="muted">${f.modified ? esc(stamp(f.modified)) : ""}</td><td class="muted">${size(f.size)}</td>
+            <td class="act">${live ? "" : `<button class="icon danger" data-delete="${esc(f.name)}">${T.del}</button>`}</td></tr>`;
+        }).join("")}</tbody></table>`
+      : `<div class="muted">${T.noFiles}</div>`);
+  },
+};
+
+// tools -------------------------------------------------------------------------------------------
+const blocked = (g) => (!g.connected ? T.whyDown : g.exclusive_peer ? fill(T.whyLocked, { peer: g.exclusive_peer }) : "");
+PANELS.tools = {
+  build: (g) => `
+    <section class="card">
+      <h3>${T.test}</h3>
+      <p class="note">${esc(T.testNote)}</p>
+      <div class="row"><button class="primary" id="test">${T.testStart}</button><span class="note" id="test-why"></span></div>
+      <div id="test-out"></div>
+    </section>
+    <section class="card">
+      <h3>${T.send}</h3>
+      <p class="caution">⚠ ${esc(fill(T.sendNote, { proto: g.protocol.toUpperCase() }))}</p>
+      <div class="row"><input type="text" class="hexin" id="hex" placeholder="${g.protocol === "esp2" ? "A5 5A 0B 07 …" : "55 00 0A 07 01 EB …"}" autocomplete="off" spellcheck="false" aria-label="${esc(T.hexLabel)}" aria-describedby="hex-check">
+        <button class="danger" id="send">${T.sendBtn}</button></div>
+      <div class="check" id="hex-check" aria-live="polite"></div>
+      <div id="send-why" class="note"></div>
+      <div id="send-out"></div>
+    </section>`,
+  init(g) {
+    $("hex").value = state.hex[g.name] || "";
+    checkInput(g);
+  },
+  render(g) {
+    const why = blocked(g);
+    const busy = !!state.busy[g.name];
+    $("test").disabled = !!why || busy;
+    text($("test"), busy ? T.testRunning : T.testStart);
+    text($("test-why"), why ? fill(T.why, { reason: why }) : "");
+    $("send").disabled = !!why;
+    text($("send-why"), why ? fill(T.why, { reason: why }) : "");
+    const t = state.tests[g.name];
+    draw($("test-out"), !t ? "" : t.error ? `<div class="error">${T.error}: ${esc(t.error)}</div>` : `
+      <div class="bar"><div style="width:${(t.answered * 100) / t.sent}%;background:${t.lost ? "var(--warn)" : "var(--ok)"}"></div></div>
+      <div class="result"><b>${esc(fill(T.testResult, t))}</b> · ${esc(fill(T.testTimes, { avg: t.avg_ms ?? "–", max: t.max_ms ?? "–" }))}</div>
+      <div class="note ${t.lost ? "warn" : "ok"}">${esc(t.lost ? fill(T.testLost, t) : T.testGood)} <span class="muted">(${hms(t.at)})</span></div>`);
+    const log = state.sends[g.name] || [];
+    draw($("send-out"), log.length ? `<h3 style="margin:6px 0 2px">${T.sentLog}</h3><ul class="history">${log.map((e) => `<li>
+      <span class="muted mono">${hms(e.at)}</span><span class="mono">↑ ${esc(e.hex)}</span>
+      <span></span>${e.error ? `<span class="error">${T.error}: ${esc(e.error)}</span>` : `<span class="mono">↓ ${esc(e.answer ? e.answer.toUpperCase() : T.noAnswer)}</span>`}</li>`).join("")}</ul>` : "");
+  },
+};
+
+function checkInput(g) {
+  const raw = $("hex").value;
+  state.hex[g.name] = raw;
+  const bytes = parseHex(raw);
+  const r = checkFrame(bytes, g.protocol);
+  const parts = [];
+  if (bytes && bytes.length) parts.push(`<span class="muted">${fill(T.cBytes, { n: bytes.length })}</span>`);
+  parts.push(`<span class="${r.level === "ok" ? "ok" : r.level === "bad" ? "error" : "muted"}">${r.level === "ok" ? "✓ " : r.level === "bad" ? "✗ " : ""}${esc(r.msg)}</span>`);
+  if (r.fix) parts.push(`<button class="icon" id="hex-fix" data-fix="${esc(toHex(r.fix))}">${esc(r.fixLabel)}</button>`);
+  $("hex-check").innerHTML = parts.join("");
+}
+
+// render loop ---------------------------------------------------------------------------------------
+function render() {
+  renderHeader();
+  const data = state.last;
+  if (!data) return;
+  if (!data.gateways.length) { draw($("panel"), `<section class="card empty">${esc(T.noGateways)}</section>`); return; }
+  const key = data.gateways.map((g) => g.name).join("|");
+  if (state.built !== key) { buildShell(data); state.built = key; state.panel = ""; }
+  const g = current();
+  state.gw = g.name;
+  renderShell(data, g);
+  const panelKey = `${key}|${g.name}|${state.tab}`;
+  const panel = PANELS[state.tab];
+  if (state.panel !== panelKey) {
+    $("panel").innerHTML = panel.build(g, data);
+    state.panel = panelKey;
+    panel.init?.(g);
+  }
+  panel.render(g, data);
 }
 
 async function refresh(force = false) {
   // the timer skips while an answer is outstanding; actions refresh at once (force)
-  if (!force && ((state.paused && state.last) || document.hidden || state.loading)) return;
+  if (!force && (document.hidden || state.loading)) return;
   const seq = ++state.seq;
   state.loading = true;
   try {
@@ -380,59 +750,105 @@ async function refresh(force = false) {
   } catch (err) {
     if (seq < state.shown) return;
     state.shown = seq;
-    state.stale = true;
-    renderToolbar();
-    // what is still shown is the last known state: say so, and from when
-    const since = state.last ? ` · ${fill(T.staleSince, { time: new Date(state.last.now * 1000).toLocaleTimeString(DE ? "de-DE" : "en-GB", { hour12: false }) })}` : "";
-    $("meta").innerHTML = `<span class="error">${T.offline}</span>${esc(since)}`;
+    state.stale = true;  // what is still shown is the last known state: say so, and from when
+    renderHeader();
   } finally {
     if (seq === state.seq) state.loading = false;
   }
 }
 
+function select(changes) {
+  Object.assign(state, changes);
+  remember();
+  forced = true; render(); forced = false;
+}
+function pause(on) {
+  state.paused = on;
+  const g = current();
+  state.frozen = on && g ? g.recent.slice() : null;
+  state.pausedAt = on ? (state.last?.now ?? Date.now() / 1000) : 0;
+}
+
+// events ------------------------------------------------------------------------------------------
 document.addEventListener("click", async (e) => {
   const target = e.target.closest("button");
   if (!target) return;
-  const data = state.last;
+  const g = current();
+  const d = target.dataset;
   try {
-    if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; forced = true; render(); forced = false; }
-    else if (target.id === "pause") { state.paused = !state.paused; render(); if (!state.paused) refresh(true); }
-    else if (target.id === "cap-toggle") {
-      if (data.capture.active) await api("api/capture/stop", {});
-      else await api("api/capture/start", { gateway: $("cap-gateway").value || null, exclusive_peer: $("cap-peer").value || null });
-      $("cap-result").textContent = "";
-      state.paused = false; await refresh(true);
-    } else if (target.dataset.delete) {
-      if (confirm(T.confirmDelete)) { await api(`api/captures/${encodeURIComponent(target.dataset.delete)}/delete`, {}); await refresh(true); }
-    } else if (target.dataset.test !== undefined) {
-      const i = Number(target.dataset.test);
-      target.disabled = true;
-      $(`test-${i}`).textContent = "…";
-      const r = await api("api/test", { gateway: data.gateways[i].name, count: 20 });
-      $(`test-${i}`).textContent = fill(T.testResult, { answered: r.answered, sent: r.sent, avg: r.avg_ms, max: r.max_ms });
-      target.disabled = false;
-    } else if (target.dataset.send !== undefined) {
-      const i = Number(target.dataset.send);
+    if (d.tab) select({ tab: d.tab });
+    else if (d.gw) { if (d.gw !== state.gw) pause(false); select({ gw: d.gw }); }
+    else if (d.goto) select({ tab: d.goto });
+    else if (d.kind !== undefined) select({ kind: d.kind });
+    else if (d.q !== undefined) { state.q = d.q; $("q").value = d.q; select({}); }
+    else if (target.id === "m-clear") { state.kind = state.dir = state.q = ""; $("q").value = $("dir").value = ""; select({}); }
+    else if (target.id === "pause") { pause(!state.paused); select({}); }
+    else if (d.copy) { if (await copy(d.copy.toUpperCase())) { target.textContent = "✓"; setTimeout(() => { target.textContent = "⧉"; }, 1200); } }
+    else if (d.tpl) { state.hex[g.name] = d.tpl.toUpperCase(); select({ tab: "tools" }); $("hex").focus(); }
+    else if (d.fix) { $("hex").value = d.fix; checkInput(g); $("hex").focus(); }
+    else if (target.id === "cap-start") {
+      await api("api/capture/start", { gateway: $("cap-gateway").value || null, exclusive_peer: $("cap-peer").value || null });
+      $("cap-out").textContent = "";
+      await refresh(true);
+    } else if (target.id === "cap-stop") {
+      await api("api/capture/stop", {});
+      await refresh(true);
+    } else if (d.delete) {
+      if (confirm(fill(T.confirmDelete, { name: d.delete }))) { await api(`api/captures/${encodeURIComponent(d.delete)}/delete`, {}); await refresh(true); }
+    } else if (target.id === "test") {
+      const name = g.name;
+      state.busy[name] = true; render();
+      try {
+        state.tests[name] = { ...(await api("api/test", { gateway: name, count: 20 })), at: Date.now() / 1000 };
+      } catch (err) {
+        state.tests[name] = { error: err.message, at: Date.now() / 1000 };
+      } finally {
+        state.busy[name] = false; render();
+      }
+    } else if (target.id === "send") {
       // a typo is refused, never dropped: the confirmation shows the exact bytes that go out
-      const raw = $(`hex-${i}`).value;
-      const hex = raw.replace(/[\s:-]/g, "");
-      if (!hex || /[^0-9a-fA-F]/.test(hex) || hex.length % 2) throw new Error(T.badHex);
-      if (!confirm(`${T.confirmSend}\n\n${hex.toUpperCase().match(/../g).join(" ")}`)) return;
-      const r = await api("api/send", { gateway: data.gateways[i].name, hex });
-      $(`send-${i}`).textContent = `${T.answer}: ${r.answer || T.noAnswer}`;
+      const bytes = parseHex($("hex").value);
+      if (!bytes || !bytes.length) throw new Error(T.badHex);
+      const hex = toHex(bytes);
+      if (!confirm(`${fill(T.confirmSend, { gw: g.name })}\n\n${hex}`)) return;
+      const log = (state.sends[g.name] ||= []);
+      try {
+        const r = await api("api/send", { gateway: g.name, hex: hex.replace(/ /g, "") });
+        log.unshift({ at: Date.now() / 1000, hex, answer: r.answer });
+      } catch (err) {
+        log.unshift({ at: Date.now() / 1000, hex, error: err.message });
+      }
+      log.splice(5);
+      render();
     }
   } catch (err) {
-    const where = target.dataset.test ?? target.dataset.send;
-    const out = target.id === "cap-toggle" || target.dataset.delete ? $("cap-result") : where !== undefined ? $(target.dataset.test !== undefined ? `test-${where}` : `send-${where}`) : null;
+    const out = target.id === "cap-stop" ? $("cap-run-out") : target.id === "cap-start" || d.delete ? $("cap-out") : target.id === "send" ? $("hex-check") : null;
     if (out) out.innerHTML = `<span class="error">${T.error}: ${esc(err.message)}</span>`;
-    target.disabled = false;
   }
 });
-document.addEventListener("change", (e) => { if (e.target.id === "cap-gateway") render(); });
+document.addEventListener("input", (e) => {
+  if (e.target.id === "q") { state.q = e.target.value; select({}); }
+  else if (e.target.id === "hex") checkInput(current());
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "dir") select({ dir: e.target.value });
+  else if (e.target.id === "cap-gateway") render();
+});
+// arrow keys move between tabs (and between gateways)
+document.addEventListener("keydown", (e) => {
+  const tab = e.target.closest?.('[role="tab"]');
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+  const all = [...tab.parentElement.querySelectorAll('[role="tab"]')];
+  const i = all.indexOf(tab);
+  const next = all[e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + all.length) % all.length];
+  e.preventDefault();
+  next.click();
+  const key = next.dataset.tab ? `data-tab="${next.dataset.tab}"` : `data-gw="${CSS.escape(next.dataset.gw)}"`;
+  document.querySelector(`[role="tab"][${key}]`)?.focus();
+});
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(true); });
-buildToolbar();
-renderToolbar();
-refresh();
+renderHeader();
+refresh(true);
 setInterval(refresh, 2000);
 </script>
 </body>

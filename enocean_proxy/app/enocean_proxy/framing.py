@@ -115,6 +115,26 @@ def expects_response(protocol: str, frame: bytes) -> bool:
     return hseq == ESP2_TCT and org < ESP2_BUS_CONTROL
 
 
+ESP2_ORG_RORG = {0x05: "RPS", 0x06: "1BS", 0x07: "4BS", 0xD2: "VLD"}
+ESP3_RORG = {0xF6: "RPS", 0xD5: "1BS", 0xA5: "4BS", 0xD2: "VLD"}
+
+
+def radio_info(protocol: str, frame: bytes) -> tuple[str, str] | None:
+    """Telegram type (RPS, 1BS, 4BS, VLD) and sender ID ("FF-AA-80-01") of a radio frame,
+    for the status page; None for anything else."""
+    if not is_radio(protocol, frame):
+        return None
+    if protocol == "esp3":
+        length = int.from_bytes(frame[1:3], "big")
+        if frame[4] != 0x01 or length < 6 or len(frame) < 6 + length:
+            return None  # only RADIO_ERP1: RORG, data, 4 ID bytes, status
+        data = frame[6 : 6 + length]
+        return ESP3_RORG.get(data[0], f"{data[0]:02X}"), data[-5:-1].hex("-").upper()
+    if len(frame) < 14:
+        return None
+    return ESP2_ORG_RORG.get(frame[3], f"{frame[3]:02X}"), frame[8:12].hex("-").upper()
+
+
 # Air time (868 MHz duty cycle) ------------------------------------------------------------
 
 BIT_RATE = 125_000  # bit/s of EnOcean radio

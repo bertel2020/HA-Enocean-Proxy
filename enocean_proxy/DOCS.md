@@ -50,17 +50,28 @@ to the proxy instead.
 
 ## Status page
 
-**EnOcean Proxy** in the sidebar (or **Open web UI** on the app page) shows each gateway:
-connected or not (with the last error), the programs connected and whether they use replay,
-telegrams from and to the gateway, queue, dropped, replayed, refused and stalled clients,
-how full the replay buffer is, the allowed clients and the last 50 frames live. Filter the
-frames by radio telegrams, answers or other, or pause the list. While text in the list is
-selected, for example to copy a frame, it is not redrawn. When the app stops answering, the
-page dims the last known state and shows its time.
+**EnOcean Proxy** in the sidebar (or **Open web UI** on the app page). With several
+gateways, pick one at the top; a dot shows its state. Below, four tabs:
+
+- **Overview**: connected or not, and what needs attention, each with a short explanation
+  (gateway unreachable, reserved for a capture, dropped or held-back telegrams, refused or
+  stalled programs, a long queue, high air time, no program connected). Below that the
+  telegrams received, sent and replayed, the connected programs (and whether they use
+  replay), the replay buffer, the air time, who may connect and the latest telegrams.
+- **Telegrams**: the last 50 frames live with time, direction, kind, telegram type and
+  sender ID of radio telegrams, program and bytes. Search for an ID, program or hex, filter
+  by kind and direction, click an ID to see only that sender. **Pause** freezes the list
+  (the rest of the page stays live) and shows how many frames arrived since. Each frame can
+  be copied or taken over into **Send frame**.
+- **Capture**: see below.
+- **Tools**: gateway test and send frame, see below.
+
+While text is selected, for example to copy a frame, it is not redrawn. When the app stops
+answering, the page dims the last known state and shows its time.
 
 ## Capture (e.g. PCT14 and FAM14)
 
-**Capture** on the status page writes every frame in both directions, with time, gateway,
+The **Capture** tab writes every frame in both directions, with time, gateway,
 kind and the sending program, to `/share/enocean_proxy/capture-<time>-<gateway>.jsonl`. The
 files are listed on the page for download (and are reachable through the Samba or SSH app).
 A capture stops by itself at 50 MB.
@@ -74,8 +85,8 @@ To record what the PCT14 configuration software says to a FAM14:
 3. On the Windows PC, create a virtual COM port that connects over TCP to
    `<Home Assistant address>:9100` (e.g. HW VSP3 from HW group, or com0com with hub4com), and
    pick that COM port in PCT14.
-4. On the status page, choose the FAM14 gateway, pick the PC's address under **Only this
-   program may send** and start the capture. Home Assistant keeps receiving but cannot send
+4. On the **Capture** tab, choose the FAM14 gateway, pick **Only <PC address>** under
+   **Allow sending** and start the capture. Home Assistant keeps receiving but cannot send
    to this gateway meanwhile, so it does not disturb the bus memory access.
 5. Read or write the devices in PCT14, stop the capture, download the file.
 
@@ -93,8 +104,12 @@ Normal use stays far below; a burst of many covers or a misbehaving automation s
 - **Gateway test** reads the base ID 20 times and reports how many answers came and how long
   they took. Nothing is sent over the air.
 - **Send frame** sends one complete ESP2 or ESP3 frame typed in hex (pairs of hex digits,
-  separated at most by spaces, `:` or `-`) and shows the gateway's answer. The confirmation
-  shows the exact bytes. It is really sent: actuators react.
+  separated at most by spaces, `:` or `-`) and shows the gateway's answer. While you type it
+  checks the sync bytes, the length and the ESP2 checksum or ESP3 CRCs and offers to add or
+  fix the checksum. The confirmation shows the exact bytes. It is really sent: actuators
+  react.
+- Both say why they are unavailable: the gateway is not connected, or a capture reserves it
+  for one program.
 
 ## Network and security
 

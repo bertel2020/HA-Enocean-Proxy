@@ -29,10 +29,11 @@ Details: [enocean_proxy/DOCS.md](enocean_proxy/DOCS.md).
 - A program that sends `EOPX REPLAY` right after connecting first gets the radio telegrams
   that arrived while no such program was connected, in order (up to `replay_size`, none
   older than `replay_max_age_s`).
-- A status page in the sidebar (ingress) shows connections, programs, counters, the
-  replay buffer, the air time against the 1 % duty cycle and the last frames live; it
-  records captures (e.g. PCT14 with a FAM14, optionally with the gateway reserved for one
-  program), tests the gateway and sends single frames.
+- A status page in the sidebar (ingress), one gateway at a time in four tabs: an
+  **overview** that explains what needs attention (connection, programs, replay buffer, air
+  time against the 1 % duty cycle), the **telegrams** live with sender IDs, search and
+  filters, **captures** (e.g. PCT14 with a FAM14, optionally with the gateway reserved for
+  one program) and **tools** (gateway test, sending a single frame with checksum check).
 - Replay can carry each telegram's reception time (`EOPX REPLAY TS`).
 - Home Assistant finds the gateways itself (Supervisor discovery). The ports stay inside the
   Supervisor network unless you open them; `allowed_clients` limits who may connect.
