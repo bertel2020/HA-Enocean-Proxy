@@ -86,6 +86,13 @@ class StatusServer:
                 return proxy
         raise ApiError(f"unknown gateway {name!r}")
 
+    def _sendable(self, name: Any) -> GatewayProxy:
+        """A gateway the status page may send to: not reserved for one program."""
+        proxy = self._proxy(name)
+        if proxy.exclusive_peer is not None:
+            raise ApiError(f"{proxy.name} is reserved for {proxy.exclusive_peer} during a capture")
+        return proxy
+
     async def _route(
         self, method: str, path: str, body: bytes, content_type: str = "application/json"
     ) -> Response:
@@ -125,7 +132,7 @@ class StatusServer:
             self.captures.delete(route.removeprefix("captures/").removesuffix("/delete"))
             return _json({"deleted": True})
         if route == "send":
-            proxy = self._proxy(request.get("gateway"))
+            proxy = self._sendable(request.get("gateway"))
             try:
                 frame = bytes.fromhex(str(request.get("hex", "")))
                 answer = await proxy.request(frame)
@@ -133,7 +140,7 @@ class StatusServer:
                 raise ApiError(str(err)) from err
             return _json({"sent": True, "answer": answer.hex(" ") if answer else None})
         if route == "test":
-            proxy = self._proxy(request.get("gateway"))
+            proxy = self._sendable(request.get("gateway"))
             count = max(1, min(100, int(request.get("count", 20))))
             try:
                 return _json(await proxy.gateway_test(count))

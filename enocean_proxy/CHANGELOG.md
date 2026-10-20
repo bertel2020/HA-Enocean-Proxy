@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+
+- Status page reviewed: four main figures plus an "issues" line instead of eight tiles
+  full of zeros; "connecting" instead of "disconnected" before the first error; one
+  sticky bar for live/pause and the frame filter instead of buttons in every card that
+  acted on all of them; frames as a stacked list on phones; labels for screen readers;
+  sending a frame asks for confirmation; send and test are refused while a capture
+  reserves the gateway; clearer error messages; no polling in hidden tabs; reduced motion.
+
 ## 0.5.0
 
 - Read-only status on port 9199 inside the Supervisor network: the EnOcean Eltako

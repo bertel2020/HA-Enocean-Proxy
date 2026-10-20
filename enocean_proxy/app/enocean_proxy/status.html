@@ -37,7 +37,7 @@
   .pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
   .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .metric { background: var(--soft); border-radius: 8px; padding: 8px 10px; }
   .metric b { display: block; font-size: 20px; font-weight: 400; }
   .metric span { font-size: 12px; color: var(--muted); }
@@ -65,7 +65,7 @@
   .error { color: var(--bad); }
   @media (max-width: 600px) {
     main { padding: 10px; }
-    .metrics { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
     .metric { padding: 6px 8px; }
     .metric b { font-size: 16px; }
     .metric span { font-size: 11px; }
@@ -80,6 +80,32 @@
   .note { font-size: 12px; color: var(--muted); }
   .pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
   .files a { color: var(--accent); text-decoration: none; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 2;
+    background: var(--bg); padding: 8px 0; }
+  .toolbar .spacer { flex: 1; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 10px; border-radius: 999px;
+    color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+  .live.paused { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .live.paused i { animation: none; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
+  .issues { font-size: 13px; }
+  .issues .ok { color: var(--ok); }
+  .issues .bad { color: var(--bad); }
+  .files li { flex-wrap: wrap; }
+  .files a { overflow-wrap: anywhere; }
+  .files .muted { white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 600px) {
+    .frames table, .frames tbody, .frames tr, .frames td { display: block; }
+    .frames thead { display: none; }
+    .frames tr { display: grid; grid-template-columns: auto auto 1fr; gap: 0 10px; padding: 6px 10px;
+      border-top: 1px solid var(--line); }
+    .frames td { border: 0; padding: 0; }
+    .frames td.peer { text-align: right; }
+    .frames td.hex { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; margin-top: 2px; }
+  }
   details > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase;
     letter-spacing: .04em; font-weight: 500; }
   details[open] > summary { margin-bottom: 10px; }
@@ -88,6 +114,12 @@
 <body>
 <main>
   <header><h1>EnOcean Proxy</h1><span class="muted" id="meta"></span></header>
+  <div class="toolbar" role="toolbar">
+    <span class="live" id="live"><i></i><span></span></span>
+    <button id="pause"></button>
+    <span class="spacer"></span>
+    <span class="row" id="kinds" role="group"></span>
+  </div>
   <section class="card" id="capture"></section>
   <div id="gateways" style="display:grid;gap:16px"></div>
 </main>
@@ -114,6 +146,10 @@ const T = DE ? {
   testResult: "{answered} von {sent} beantwortet · Ø {avg} ms · max. {max} ms", send: "Rahmen senden",
   sendNote: "Ein vollständiger ESP2- oder ESP3-Rahmen in Hex (z. B. A5 5A 6B 05 …). Wird wirklich gesendet: Aktoren schalten!",
   answer: "Antwort", noAnswer: "keine Antwort erwartet oder erhalten", error: "Fehler",
+  connecting: "Verbindet …", issues: "Auffälligkeiten", noIssues: "keine", live: "Live", pausedLabel: "Pausiert",
+  ofLimit: "von 1 %", telegramsShort: "Telegramme", unrestricted: "keine Einschränkung (nur Supervisor-Netz, solange keine Ports freigegeben sind)",
+  confirmSend: "Diesen Rahmen wirklich an das Gateway senden? Aktoren können schalten.", hexLabel: "Rahmen in Hex",
+  gatewayLabel: "Gateway für den Mitschnitt", peerLabel: "Programm, das allein senden darf", show: "Anzeigen",
 } : {
   connected: "Connected", disconnected: "Disconnected", since: "since", lastError: "Last error",
   port: "Port", clients: "Programs", noClients: "No program connected", replayTag: "replay",
@@ -135,6 +171,10 @@ const T = DE ? {
   testResult: "{answered} of {sent} answered · avg {avg} ms · max {max} ms", send: "Send frame",
   sendNote: "A complete ESP2 or ESP3 frame in hex (e.g. A5 5A 6B 05 …). It is really sent: actuators switch!",
   answer: "Answer", noAnswer: "no answer expected or received", error: "Error",
+  connecting: "Connecting …", issues: "Issues", noIssues: "none", live: "Live", pausedLabel: "Paused",
+  ofLimit: "of 1 %", telegramsShort: "telegrams", unrestricted: "no restriction (Supervisor network only while no ports are opened)",
+  confirmSend: "Really send this frame to the gateway? Actuators may switch.", hexLabel: "Frame in hex",
+  gatewayLabel: "Gateway to capture", peerLabel: "Program that may send alone", show: "Show",
 };
 document.documentElement.lang = DE ? "de" : "en";
 const state = { paused: false, kind: "", last: null, built: "" };
@@ -160,8 +200,10 @@ async function api(path, body) {
   const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
+  const text = await response.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch (err) { /* plain text answer */ }
+  if (!response.ok) throw new Error((data && data.error) || text || response.statusText);
   return data;
 }
 
@@ -171,8 +213,8 @@ function build(data) {
     <div class="top"><h2>${T.capture}</h2><span id="cap-state"></span></div>
     <div class="note">${esc(T.captureNote)}</div>
     <div class="row">
-      <select id="cap-gateway"><option value="">${esc(T.allGateways)}</option>${data.gateways.map((g) => `<option>${esc(g.name)}</option>`).join("")}</select>
-      <select id="cap-peer" title="${esc(T.exclusive)}"><option value="">${esc(T.nobody)}</option></select>
+      <select id="cap-gateway" aria-label="${esc(T.gatewayLabel)}"><option value="">${esc(T.allGateways)}</option>${data.gateways.map((g) => `<option>${esc(g.name)}</option>`).join("")}</select>
+      <select id="cap-peer" title="${esc(T.exclusive)}" aria-label="${esc(T.peerLabel)}"><option value="">${esc(T.nobody)}</option></select>
       <button class="primary" id="cap-toggle"></button>
     </div>
     <div class="result" id="cap-result"></div>
@@ -183,6 +225,7 @@ function build(data) {
       <div class="sub mono" id="sub-${i}"></div>
       <div id="err-${i}"></div>
       <div class="metrics" id="metrics-${i}"></div>
+      <div class="issues" id="issues-${i}"></div>
       <div class="grid">
         <div><h3>${T.clients}</h3><div id="clients-${i}"></div></div>
         <div><h3>${T.replay}</h3><div id="replay-${i}"></div></div>
@@ -193,11 +236,11 @@ function build(data) {
         <div style="display:grid;gap:14px">
           <div><div class="row"><button data-test="${i}">${T.test}</button><span class="result" id="test-${i}"></span></div>
             <div class="note" style="margin-top:4px">${esc(T.testNote)}</div></div>
-          <div><div class="row"><input type="text" id="hex-${i}" placeholder="A5 5A …" autocomplete="off"><button class="danger" data-send="${i}">${T.send}</button></div>
+          <div><div class="row"><input type="text" id="hex-${i}" placeholder="A5 5A …" autocomplete="off" spellcheck="false" aria-label="${esc(T.hexLabel)}"><button class="danger" data-send="${i}">${T.send}</button></div>
             <div class="note" style="margin-top:4px">${esc(T.sendNote)}</div><div class="result" id="send-${i}"></div></div>
         </div>
       </details>
-      <div class="frames-head"><h3 style="margin:0">${T.frames}</h3><span class="spacer"></span><span class="row" id="filters-${i}"></span></div>
+      <h3 style="margin:0">${T.frames}</h3>
       <div class="frames" id="frames-${i}"></div>
     </section>`).join("");
   state.built = data.gateways.map((g) => g.name).join("|");
@@ -227,14 +270,17 @@ function renderGateway(g, i, now) {
   const s = g.stats;
   $(`pill-${i}`).innerHTML = g.connected
     ? `<span class="pill ok"><i></i>${T.connected}${g.connected_since ? ` · ${T.since} ${duration(now - g.connected_since)}` : ""}</span>`
-    : `<span class="pill bad"><i></i>${T.disconnected}</span>`;
+    : g.last_error
+      ? `<span class="pill bad"><i></i>${T.disconnected}</span>`
+      : `<span class="pill warn"><i></i>${T.connecting}</span>`;
   $(`lock-${i}`).innerHTML = g.exclusive_peer ? `<span class="pill warn"><i></i>${esc(fill(T.alone, { peer: g.exclusive_peer }))}</span>` : "";
   $(`sub-${i}`).textContent = [g.device, g.protocol.toUpperCase(), g.baudrate ? `${g.baudrate} Bd` : "", `${T.port} ${g.port}`].filter(Boolean).join(" · ");
   $(`err-${i}`).innerHTML = g.last_error && !g.connected ? `<div class="error">${T.lastError}: ${esc(g.last_error)}</div>` : "";
   $(`metrics-${i}`).innerHTML = metric(s.from_gateway, T.fromGateway) + metric(s.to_gateway, T.toGateway)
-    + metric(g.queue, T.queue, g.queue > 10) + metric(s.dropped, T.dropped, s.dropped > 0)
-    + metric(s.replayed, T.replayed) + metric(s.refused, T.refused, s.refused > 0)
-    + metric(s.slow_clients, T.slow, s.slow_clients > 0) + metric(s.locked, T.locked, s.locked > 0);
+    + metric(g.queue, T.queue, g.queue > 10) + metric(s.replayed, T.replayed);
+  const issues = [[s.dropped, T.dropped], [s.refused, T.refused], [s.slow_clients, T.slow], [s.locked, T.locked]]
+    .filter(([n]) => n > 0).map(([n, label]) => `<span class="bad">${Number(n)} ${esc(label)}</span>`);
+  $(`issues-${i}`).innerHTML = `<span class="muted">${T.issues}:</span> ${issues.length ? issues.join(" · ") : `<span class="ok">${T.noIssues}</span>`}`;
   $(`clients-${i}`).innerHTML = g.clients.length
     ? `<ul>${g.clients.map((c) => `<li><span class="mono">${esc(c.peer)}</span>${c.replay ? `<span class="tag accent">${T.replayTag}</span>` : ""}</li>`).join("")}</ul>`
     : `<div class="muted">${T.noClients}</div>`;
@@ -244,20 +290,30 @@ function renderGateway(g, i, now) {
   const d = g.duty_cycle;
   const level = d.of_limit >= 80 ? "var(--bad)" : d.of_limit >= 50 ? "var(--warn)" : "var(--accent)";
   $(`duty-${i}`).innerHTML = `<div class="bar"><div style="width:${Math.min(100, d.of_limit)}%;background:${level}"></div></div>
-    <div class="sub" style="margin-top:6px">${d.of_limit} % ${T.dutyOf} · ${d.telegrams} ${T.telegramsSent} · ${(d.ms / 1000).toFixed(1)} s</div>`;
-  $(`allowed-${i}`).textContent = g.allowed_clients.length ? g.allowed_clients.join(", ") : T.everyone;
+    <div class="sub" style="margin-top:6px">${Number(d.of_limit)} % ${T.ofLimit} · ${Number(d.telegrams)} ${T.telegramsShort}</div>`;
+  $(`allowed-${i}`).textContent = g.allowed_clients.length ? g.allowed_clients.join(", ") : T.unrestricted;
   const labels = kindLabel();
-  $(`filters-${i}`).innerHTML = ["", "radio", "answer", "other"].map((k) => `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? labels[k] : T.all)}</button>`).join("")
-    + `<button data-pause aria-pressed="${state.paused}">${state.paused ? T.resume : T.pause}</button>`;
   const frames = g.recent.filter((f) => !state.kind || f.kind === state.kind).slice().reverse();
   $(`frames-${i}`).innerHTML = frames.length
     ? `<table><thead><tr><th>${T.time}</th><th>${T.dir}</th><th>${T.kind}</th><th>${T.peer}</th><th>${T.data}</th></tr></thead><tbody>${frames.map((f) => `<tr>
-        <td class="mono">${clock(f.time)}</td><td class="${f.dir}">${f.dir === "rx" ? "↓" : "↑"}</td>
-        <td>${esc(labels[f.kind] || f.kind)}</td><td class="mono">${esc(f.peer || "")}</td><td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
+        <td class="mono">${clock(f.time)}</td><td class="${f.dir === "tx" ? "tx" : "rx"}" title="${esc(f.dir === "tx" ? T.toGateway : T.fromGateway)}">${f.dir === "tx" ? "↑" : "↓"}</td>
+        <td>${esc(labels[f.kind] || f.kind)}</td><td class="mono peer">${esc(f.peer || "")}</td><td class="hex">${esc(f.hex)}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${T.none}</div>`;
 }
 
+function renderToolbar() {
+  const live = $("live");
+  live.classList.toggle("paused", state.paused);
+  live.querySelector("span").textContent = state.paused ? T.pausedLabel : T.live;
+  $("pause").textContent = state.paused ? T.resume : T.pause;
+  $("pause").setAttribute("aria-pressed", String(state.paused));
+  const labels = kindLabel();
+  $("kinds").innerHTML = ["", "radio", "answer", "other"].map((k) =>
+    `<button data-kind="${k}" aria-pressed="${state.kind === k}">${esc(k ? labels[k] : T.all)}</button>`).join("");
+}
+
 function render() {
+  renderToolbar();
   const data = state.last;
   if (!data) return;
   if (state.built !== data.gateways.map((g) => g.name).join("|")) build(data);
@@ -267,7 +323,7 @@ function render() {
 }
 
 async function refresh() {
-  if (state.paused && state.last) return;
+  if ((state.paused && state.last) || document.hidden) return;
   try {
     state.last = await api("api/status");
     render();
@@ -282,7 +338,7 @@ document.addEventListener("click", async (e) => {
   const data = state.last;
   try {
     if (target.dataset.kind !== undefined) { state.kind = target.dataset.kind; render(); }
-    else if (target.hasAttribute("data-pause")) { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
+    else if (target.id === "pause") { state.paused = !state.paused; render(); if (!state.paused) refresh(); }
     else if (target.id === "cap-toggle") {
       if (data.capture.active) await api("api/capture/stop", {});
       else await api("api/capture/start", { gateway: $("cap-gateway").value || null, exclusive_peer: $("cap-peer").value || null });
@@ -299,6 +355,7 @@ document.addEventListener("click", async (e) => {
       target.disabled = false;
     } else if (target.dataset.send !== undefined) {
       const i = Number(target.dataset.send);
+      if (!confirm(T.confirmSend)) return;
       const r = await api("api/send", { gateway: data.gateways[i].name, hex: $(`hex-${i}`).value.replace(/[^0-9a-fA-F]/g, "") });
       $(`send-${i}`).textContent = `${T.answer}: ${r.answer || T.noAnswer}`;
     }
@@ -310,6 +367,8 @@ document.addEventListener("click", async (e) => {
   }
 });
 document.addEventListener("change", (e) => { if (e.target.id === "cap-gateway") render(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+renderToolbar();
 refresh();
 setInterval(refresh, 2000);
 </script>

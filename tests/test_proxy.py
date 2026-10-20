@@ -346,6 +346,8 @@ async def test_capture_lock_send_and_gateway_test(setup, tmp_path: Path) -> None
     assert proxy.exclusive_peer == "x"
     pct14.write(COMMAND)  # not program "x": held back
     await _until(lambda: proxy.stats.locked == 1)
+    line, refused = await post("/api/test", {"gateway": "test"})  # no tests meanwhile
+    assert line.endswith("400 Bad Request") and "reserved" in refused["error"]
     await post("/api/capture/stop", {})
     assert proxy.exclusive_peer is None
 
