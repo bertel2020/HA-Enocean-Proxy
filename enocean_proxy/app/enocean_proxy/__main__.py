@@ -13,7 +13,7 @@ from typing import Any
 
 from .discovery import announce
 from .proxy import GatewayProxy, parse_networks
-from .web import StatusServer
+from .web import STATUS_PORT, StatusServer
 
 OPTIONS = Path("/data/options.json")
 PORTS = range(9100, 9104)  # the ports the app declares (config.yaml)
@@ -66,8 +66,14 @@ async def main(path: Path = OPTIONS) -> int:
         return 1
     for proxy in proxies:
         await proxy.start()
-    status = StatusServer(proxies, version=os.environ.get("APP_VERSION", ""))
+    version = os.environ.get("APP_VERSION", "")
+    status = StatusServer(proxies, version=version)
     await status.start()  # the ingress page
+    # read-only status for the integration, inside the Supervisor network (port not mapped)
+    integration = StatusServer(
+        proxies, version=version, port=STATUS_PORT, peers=None, read_only=True
+    )
+    await integration.start()
     await announce(proxies)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -75,6 +81,7 @@ async def main(path: Path = OPTIONS) -> int:
         loop.add_signal_handler(sig, stop.set)
     await stop.wait()
     await status.close()
+    await integration.close()
     for proxy in proxies:
         await proxy.close()
     return 0

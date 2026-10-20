@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Read-only status on port 9199 inside the Supervisor network: the EnOcean Eltako
+  integration shows the app's version, connected programs, air time and an active send
+  lock on its gateway cards. No frames, no actions, port not opened on the host.
+- Actions of the status page accept JSON only (no cross-site form posts).
+
 ## 0.4.0
 
 - Capture: every frame in both directions to `/share/enocean_proxy`, download and delete on

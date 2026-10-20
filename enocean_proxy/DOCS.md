@@ -95,6 +95,10 @@ Normal use stays far below; a burst of many covers or a misbehaving automation s
 
 ## Network and security
 
+The app also answers a read-only status on port 9199 (version, programs, counters, air time;
+no frames, no actions) inside the Supervisor network; the EnOcean Eltako integration shows
+it on its gateway cards. Status page actions accept JSON requests only.
+
 By default the ports are not opened on the host: Home Assistant reaches the app inside the
 Supervisor network. To connect programs elsewhere in your LAN (eo_man, a second Home Assistant),
 set host ports in the app's **Network** section and limit them with `allowed_clients`: anyone

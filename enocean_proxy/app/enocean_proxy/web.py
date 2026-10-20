@@ -22,6 +22,7 @@ from .proxy import GatewayProxy
 _LOGGER = logging.getLogger(__name__)
 
 INGRESS_PORT = 8099
+STATUS_PORT = 9199  # read-only status for the EnOcean Eltako integration (Supervisor network)
 INGRESS_PEERS = ("172.30.32.2",)  # the Supervisor's ingress proxy
 MAX_REQUEST = 8192
 MAX_BODY = 65536
@@ -41,6 +42,7 @@ class StatusServer:
         port: int = INGRESS_PORT,
         peers: Iterable[str] | None = INGRESS_PEERS,
         captures: CaptureManager | None = None,
+        read_only: bool = False,
     ) -> None:
         self.proxies = proxies
         self.version = version
@@ -48,6 +50,7 @@ class StatusServer:
         self.port = port
         self.peers = None if peers is None else set(peers)
         self.captures = captures or CaptureManager(proxies)
+        self.read_only = read_only  # status only: no page, no frames, no actions
         self.started = time.time()
         self._server: asyncio.Server | None = None
 
@@ -63,6 +66,12 @@ class StatusServer:
             await self._server.wait_closed()
 
     def status(self) -> dict[str, Any]:
+        if self.read_only:
+            gateways = [
+                {key: value for key, value in proxy.status().items() if key != "recent"}
+                for proxy in self.proxies
+            ]
+            return {"version": self.version, "now": time.time(), "gateways": gateways}
         return {
             "version": self.version,
             "started": self.started,
@@ -77,8 +86,14 @@ class StatusServer:
                 return proxy
         raise ApiError(f"unknown gateway {name!r}")
 
-    async def _route(self, method: str, path: str, body: bytes) -> Response:
+    async def _route(
+        self, method: str, path: str, body: bytes, content_type: str = "application/json"
+    ) -> Response:
         path = path.strip("/")
+        if self.read_only:
+            if method == "GET" and path == "api/status":
+                return _json(self.status())
+            return 404, "text/plain", b"not found", {}
         if path in ("", "index.html"):
             return 200, "text/html; charset=utf-8", page(), {}
         if not path.startswith("api/"):
@@ -94,6 +109,9 @@ class StatusServer:
             return 200, "application/x-ndjson", data, disposition
         if method != "POST":
             return 405, "text/plain", b"method not allowed", {}
+        if not content_type.startswith("application/json"):
+            # actions take JSON only: a plain HTML form from another site cannot trigger them
+            raise ApiError("actions need Content-Type: application/json")
         try:
             request = json.loads(body or b"{}")
         except ValueError as err:
@@ -143,7 +161,9 @@ class StatusServer:
             length = min(int(headers.get("content-length", "0") or 0), MAX_BODY)
             body = await asyncio.wait_for(reader.readexactly(length), 10) if length else b""
             try:
-                status, content_type, data, extra = await self._route(method, path, body)
+                status, content_type, data, extra = await self._route(
+                    method, path, body, headers.get("content-type", "")
+                )
             except (ApiError, CaptureError) as err:
                 status, content_type, data, extra = (
                     400,

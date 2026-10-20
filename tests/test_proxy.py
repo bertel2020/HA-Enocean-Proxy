@@ -231,6 +231,7 @@ def test_discovery_configs() -> None:
             "name": "FAM",
             "protocol": "esp2",
             "replay": True,
+            "status_port": 9199,
         }
     ]
 
@@ -331,7 +332,11 @@ async def test_capture_lock_send_and_gateway_test(setup, tmp_path: Path) -> None
     async def post(path: str, body: dict) -> tuple[str, dict]:
         reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
         data = json.dumps(body).encode()
-        writer.write(f"POST {path} HTTP/1.1\r\nContent-Length: {len(data)}\r\n\r\n".encode() + data)
+        writer.write(
+            f"POST {path} HTTP/1.1\r\nContent-Type: application/json\r\n"
+            f"Content-Length: {len(data)}\r\n\r\n".encode()
+            + data
+        )
         head, _, payload = (await reader.read()).partition(b"\r\n\r\n")
         writer.close()
         return head.decode().split("\r\n")[0], json.loads(payload)
@@ -381,6 +386,15 @@ async def test_capture_lock_send_and_gateway_test(setup, tmp_path: Path) -> None
     line, error = await post("/api/send", {"gateway": "test", "hex": "A55A00"})
     assert line.endswith("400 Bad Request") and "frame" in error["error"]
     task.cancel()
+    reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+    form = b"gateway=test&hex=00"
+    writer.write(
+        b"POST /api/send HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\n"
+        + f"Content-Length: {len(form)}\r\n\r\n".encode()
+        + form
+    )
+    assert (await reader.read()).startswith(b"HTTP/1.1 400")  # no form posts
+    writer.close()
     assert pct14_reader is not None
     pct14.close()
     home_assistant.close()
@@ -399,3 +413,22 @@ async def test_duty_cycle_counts_sent_radio_telegrams(setup) -> None:
     assert duty["telegrams"] == 3
     assert 0 < duty["ms"] < 20 and duty["of_limit"] < 1
     writer.close()
+
+
+async def test_read_only_status_for_the_integration(setup) -> None:
+    from enocean_proxy.web import StatusServer
+
+    _gateway, proxy = setup
+    server = StatusServer([proxy], host="127.0.0.1", port=0, peers=None, read_only=True)
+    await server.start()
+    line, body = await _get(server.port, "/api/status")
+    status = json.loads(body)
+    assert line == "HTTP/1.1 200 OK"
+    assert "recent" not in status["gateways"][0] and "capture" not in status
+    assert "duty_cycle" in status["gateways"][0]
+    assert (await _get(server.port, "/"))[0] == "HTTP/1.1 404 Not Found"  # no page
+    reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+    writer.write(b"POST /api/capture/start HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}")
+    assert (await reader.read()).startswith(b"HTTP/1.1 404")  # no actions
+    writer.close()
+    await server.close()

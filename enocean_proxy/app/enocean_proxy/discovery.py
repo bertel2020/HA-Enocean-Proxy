@@ -15,6 +15,7 @@ import urllib.request
 from typing import Any
 
 from .proxy import GatewayProxy
+from .web import STATUS_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ def discovery_configs(hostname: str, proxies: list[GatewayProxy]) -> list[dict[s
             "name": proxy.name,
             "protocol": proxy.protocol,
             "replay": True,
+            "status_port": STATUS_PORT,
         }
         for proxy in proxies
     ]
