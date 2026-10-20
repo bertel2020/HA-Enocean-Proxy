@@ -46,6 +46,10 @@ mypy
 python -m pytest
 ```
 
+CI publishes prebuilt images for every new version on `main`
+(`ghcr.io/bertel2020/{amd64,aarch64}-enocean-proxy`). The app still builds locally on
+install until the packages are public and `config.yaml` names them as `image`.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
