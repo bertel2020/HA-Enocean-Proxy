@@ -1,5 +1,9 @@
 # EnOcean Proxy
 
+**Discontinued:** the EnOcean gateways moved into the [Device Proxy app](https://github.com/bertel2020/HA-Device-Proxy).
+Install it, choose *Import / Export* → *Fetch from the EnOcean Proxy app*, stop this app and
+take the gateways over; the EnOcean Eltako integration finds them again.
+
 The app keeps the connection to your EnOcean gateways and offers each of them on a TCP
 port. Any number of programs can connect at the same time: the
 [EnOcean Eltako integration](https://github.com/bertel2020/HA-Enocean-Eltako), the old

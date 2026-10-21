@@ -4,6 +4,13 @@
 
 <h1 align="center">EnOcean Proxy</h1>
 
+> [!WARNING]
+> **This app is discontinued.** Its EnOcean gateways now live in the
+> [Device Proxy app](https://github.com/bertel2020/HA-Device-Proxy), with the same behaviour for the EnOcean Eltako integration
+> (replay, read-only status, discovery) plus history, notifications and MQTT entities.
+> Moving: install the Device Proxy, open *Import / Export* → *Fetch from the EnOcean Proxy
+> app*, stop this app, then take the gateways over. This app gets no new features.
+
 <p align="center">
   Share one EnOcean gateway with several programs and lose no telegram while Home Assistant restarts.
 </p>

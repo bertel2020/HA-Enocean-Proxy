@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Discontinued: the EnOcean gateways moved into the [Device Proxy app](https://github.com/bertel2020/HA-Device-Proxy) with the same
+  behaviour for the EnOcean Eltako integration. The app says so in its log at every start.
+  Moving: Device Proxy → *Import / Export* → *Fetch from the EnOcean Proxy app*, then stop
+  this app.
+
 ## 0.6.2
 
 - Status page in the look of the Device Proxy app: same colours (light and dark, follows

@@ -50,11 +50,19 @@ def proxies_from(options: dict[str, Any]) -> list[GatewayProxy]:
     ]
 
 
+DEVICE_PROXY = "https://github.com/bertel2020/HA-Device-Proxy"
+
+
 async def main(path: Path = OPTIONS) -> int:
     options = json.loads(path.read_text(encoding="utf-8"))
     logging.basicConfig(
         level=getattr(logging, str(options.get("log_level", "info")).upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(message)s",
+    )
+    logging.warning(
+        "The EnOcean Proxy app is discontinued: its gateways moved into the Device Proxy app "
+        "(%s). Device Proxy → Import / Export → Fetch from the EnOcean Proxy app.",
+        DEVICE_PROXY,
     )
     try:
         proxies = proxies_from(options)

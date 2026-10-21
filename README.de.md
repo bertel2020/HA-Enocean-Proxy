@@ -4,6 +4,13 @@
 
 <h1 align="center">EnOcean Proxy</h1>
 
+> [!WARNING]
+> **Diese App wird nicht weiterentwickelt.** Ihre EnOcean-Gateways stecken jetzt in der
+> [Device Proxy App](https://github.com/bertel2020/HA-Device-Proxy), mit demselben Verhalten für die EnOcean-Eltako-Integration
+> (Replay, Lese-Status, Discovery) und dazu Verlauf, Benachrichtigungen und MQTT-Entitäten.
+> Umzug: Device Proxy installieren, *Import / Export* → *Aus der EnOcean Proxy App holen*,
+> diese App stoppen, dann die Gateways übernehmen. Neue Funktionen gibt es hier nicht mehr.
+
 <p align="center">
   Ein EnOcean-Gateway mit mehreren Programmen teilen und beim Neustart von Home Assistant kein Telegramm verlieren.
 </p>
