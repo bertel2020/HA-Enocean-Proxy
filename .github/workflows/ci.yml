@@ -58,8 +58,8 @@ jobs:
 
   publish:
     # Prebuilt images, so the Supervisor pulls instead of building on the device. Runs on
-    # main for a version not published yet; config.yaml's "image" points here once the
-    # packages are public (GitHub → Packages → Package settings → Change visibility).
+    # main for a version not published yet; config.yaml's "image" points here (the
+    # packages are public).
     name: Publish image (${{ matrix.arch }})
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [tests, lint, build]

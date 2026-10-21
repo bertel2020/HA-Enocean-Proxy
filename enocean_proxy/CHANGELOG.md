@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Installs and updates pull a prebuilt image (`ghcr.io/bertel2020/{arch}-enocean-proxy`)
+  instead of building on the device: faster, and no build tools needed on the host.
+
 ## 0.6.0
 
 - Status page reorganised: one gateway at a time (switcher with a status dot when there

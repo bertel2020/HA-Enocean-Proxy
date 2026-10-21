@@ -48,8 +48,9 @@ python -m pytest
 ```
 
 CI publishes prebuilt images for every new version on `main`
-(`ghcr.io/bertel2020/{amd64,aarch64}-enocean-proxy`). The app still builds locally on
-install until the packages are public and `config.yaml` names them as `image`.
+(`ghcr.io/bertel2020/{amd64,aarch64}-enocean-proxy`); `config.yaml` names them as `image`,
+so the Supervisor pulls them instead of building. Bump `version` with every change: the
+publish job skips a version that already exists.
 
 ## License
 
