@@ -1,5 +1,5 @@
 name: EnOcean Proxy
-version: "0.6.1"
+version: "0.6.2"
 slug: enocean_proxy
 description: Shares EnOcean gateways (FAM-USB, FGW14-USB, FAM14, USB300, ser2net) with several programs and replays telegrams missed during a Home Assistant restart
 url: https://github.com/bertel2020/HA-Enocean-Proxy

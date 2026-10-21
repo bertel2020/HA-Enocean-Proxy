@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+- Status page in the look of the Device Proxy app: same colours (light and dark, follows
+  Home Assistant's theme), cards, chips and buttons, a header bar with the app icon and the
+  tabs on the right.
+
 ## 0.6.1
 
 - Installs and updates pull a prebuilt image (`ghcr.io/bertel2020/{arch}-enocean-proxy`)
